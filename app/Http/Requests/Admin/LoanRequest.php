@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Http\Requests\Admin;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class LoanRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
+    public function rules(): array
+    {
+        return [
+            'user' => [
+                'required',
+                'exists:users,name'
+            ],
+            'product' => [
+                'required',
+                'exists:products,title'
+            ],
+            'payment_status' => ['required', 'in:pending,paid,failed'],
+            'rent_duration' => ['required', 'integer', 'min:1'],
+            'rent_start_date' => ['required', 'date'],
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'user' => 'Pengguna',
+            'product' => 'Produk',
+        ];
+    }
+}
