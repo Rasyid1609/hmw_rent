@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use Throwable;
 use App\Hasfile;
 use App\Models\User;
+use App\Models\Loan;
+use Illuminate\Support\Facades\DB;
 use Inertia\Response;
 use App\Enums\UserGender;
 use App\Enums\MessageType;
@@ -65,7 +67,7 @@ class UserController extends Controller
                 'name' => $name = $request->name,
                 'username' => usernameGenerator($name),
                 'email' => $request->email,
-                'password' => Hash::make(request()->password),
+                'password' => Hash::make($request->input('password')),
                 'phone' => $request->phone,
                 'avatar' => $this->upload_file($request, 'avatar', 'users'),
                 'gender' => $request->gender,
@@ -76,7 +78,7 @@ class UserController extends Controller
             flashMessage(MessageType::CREATED->message('Pengguna'));
             return to_route('admin.users.index');
         } catch (Throwable $err) {
-            flashMessage(MessageType::ERROR->message(error: $err->getMessage()));
+            flashMessage(MessageType::ERROR->message(error: $err->getMessage()), 'error');
             return to_route('admin.users.index');
         }
     }
@@ -98,22 +100,26 @@ class UserController extends Controller
     public function update(User $user, UserRequest $request): RedirectResponse
     {
         try {
-            $user->update([
+            $attributes = [
                 'name' => $name = $request->name,
-                'username' => usernameGenerator($name),
                 'email' => $request->email,
-                'password' => Hash::make(request()->password),
                 'phone' => $request->phone,
                 'avatar' => $this->update_file($request, $user,'avatar', 'users'),
                 'gender' => $request->gender,
                 'date_of_birth' => $request->date_of_birth,
                 'address' => $request->address,
-            ]);
+            ];
+
+            if ($request->filled('password')) {
+                $attributes['password'] = Hash::make($request->input('password'));
+            }
+
+            $user->update($attributes);
 
             flashMessage(MessageType::UPDATED->message('Pengguna'));
             return to_route('admin.users.index');
         } catch (Throwable $err) {
-            flashMessage(MessageType::ERROR->message(error: $err->getMessage()));
+            flashMessage(MessageType::ERROR->message(error: $err->getMessage()), 'error');
             return to_route('admin.users.index');
         }
     }
@@ -121,13 +127,19 @@ class UserController extends Controller
     public function destroy(User $user): RedirectResponse
     {
         try {
+            DB::transaction(function () use ($user): void {
+                $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
+                if ($lockedUser->id === auth()->id() || Loan::where('user_id', $lockedUser->id)->exists()) {
+                    throw new \RuntimeException('Akun sendiri atau pengguna dengan riwayat penyewaan tidak dapat dihapus.');
+                }
+                $lockedUser->delete();
+            }, 3);
             $this->delete_file($user, 'avatar');
-            $user->delete();
 
             flashMessage(MessageType::DELETED->message('Pengguna'));
             return to_route('admin.users.index');
         } catch (Throwable $err) {
-            flashMessage(MessageType::ERROR->message(error: $err->getMessage()));
+            flashMessage(MessageType::ERROR->message(error: $err->getMessage()), 'error');
             return to_route('admin.users.index');
         }
     }

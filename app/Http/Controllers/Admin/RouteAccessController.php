@@ -7,7 +7,7 @@ use Inertia\Response;
 use App\Enums\MessageType;
 use App\Models\RouteAccess;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Role;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;

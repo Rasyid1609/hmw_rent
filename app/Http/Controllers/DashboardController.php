@@ -90,13 +90,13 @@ class DashboardController extends Controller
         $start_date = $end_date->copy()->subMonth()->startOfMonth();
 
         $loans = Loans::query()
-            ->selectRaw('DATE(loan_date) as date, COUNT(*) as loan')
+            ->selectRaw('DATE(rent_start_date) as date, COUNT(*) as loan')
             ->when(auth()->user()->hasAnyRole(['admin', 'operator']), function($query){
                 return $query;
             }, function($query) {
                 return $query->where('user_id', auth()->user()->id);
             })
-            ->whereBetween('loan_date', [$start_date, $end_date])
+            ->whereBetween('rent_start_date', [$start_date, $end_date])
             ->groupBy('date')
             ->orderBy('date')
             ->pluck('loan', 'date');

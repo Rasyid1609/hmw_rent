@@ -65,6 +65,8 @@ export default function AppLayout({ title, children }) {
                                 <SidebarResponsive url={url} auth={auth} />
                             </SheetContent>
                         </Sheet>
+                        <div className="ml-auto flex items-center gap-2">
+                        <ThemeSwitcher className="shrink-0 lg:hidden" />
                         {/* {Dropdown} */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -85,12 +87,17 @@ export default function AppLayout({ title, children }) {
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Akun saya</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem>Profile</DropdownMenuItem>
                                 <DropdownMenuItem asChild>
-                                    <Link href="#">Logout</Link>
+                                    <Link href={route('profile.edit')}>Profil</Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link href={route('logout')} method="post" as="button" className="w-full">
+                                        Keluar
+                                    </Link>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+                        </div>
                     </header>
                     <main className="w-full">
                         <div className="relatif">

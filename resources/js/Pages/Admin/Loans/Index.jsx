@@ -220,7 +220,7 @@ export default function Index(props) {
                                     <TableCell>{loan.rent_start_date}</TableCell>
                                     <TableCell>{loan.rent_end_date}</TableCell>
                                     <TableCell>{loan.rent_duration}</TableCell>
-                                    <TableCell>{loan.payment_status}</TableCell>
+                                    <TableCell>{loan.payment_status_label}</TableCell>
                                     <TableCell>{loan.created_at}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-x-1">

@@ -14,9 +14,9 @@ import { toast } from 'sonner';
 
 export default function Create(props) {
     const { data, setData, reset, put, processing, errors } = useForm({
-        loan_date: props.loan.loan_date,
+        loan_date: props.loan.rent_start_date,
         loan_code: props.loan.loan_code,
-        due_date: props.loan.due_date,
+        due_date: props.loan.rent_end_date,
         return_date: props.date.return_date,
         condition: '',
         notes: '',

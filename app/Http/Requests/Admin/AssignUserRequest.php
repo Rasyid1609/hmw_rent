@@ -24,7 +24,11 @@ class AssignUserRequest extends FormRequest
         return [
             'roles' => [
                 'nullable',
-                'exists:roles,name'
+                'array',
+            ],
+            'roles.*' => [
+                'integer',
+                'exists:roles,id',
             ],
         ];
     }

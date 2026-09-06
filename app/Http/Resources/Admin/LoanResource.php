@@ -21,9 +21,10 @@ class LoanResource extends JsonResource
             'rent_end_date' => $this->rent_end_date->format('d M Y'),
             'rent_duration' => $this->rent_duration,
             'payment_status' => $this->payment_status,
+            'payment_status_label' => $this->paymentStatusLabel(),
             'rent_duration' => $this->rent_duration,
             'rent_price' => (float) $this->rent_price,
-            'proof_image' => $this->proof_image,
+            'proof_image' => $this->proof_image ? route('payment-proofs.loans.show', $this->id) : null,
             'created_at' => $this->created_at->format('d M Y'),
             'has_return_product' => $this->returnProduct()->exists(),
             'user' => $this->whenLoaded('user', [

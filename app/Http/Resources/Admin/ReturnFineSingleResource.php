@@ -23,7 +23,7 @@ class ReturnFineSingleResource extends JsonResource
             ? Carbon::parse($this->return_date)->format('d M Y')
             : null,
 
-        'dayslate' => $this->dayslate,
+        'dayslate' => $this->getDaysLate(),
 
         'product' => $this->product ? [
             'id' => $this->product->id,
@@ -31,6 +31,8 @@ class ReturnFineSingleResource extends JsonResource
         ] : null,
 
         'fine' => $this->fine ? [
+            'id' => $this->fine->id,
+            'proof_image' => $this->fine->proof_image ? route('payment-proofs.fines.show', $this->fine) : null,
             'late_fee' => $this->fine->late_fee,
             'other_fee' => $this->fine->other_fee,
             'total_fee' => $this->fine->total_fee,

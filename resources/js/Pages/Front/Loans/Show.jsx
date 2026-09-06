@@ -29,11 +29,15 @@ export default function Show(props) {
                         <dd className="mt-1 text-muted-foreground">{props.loan.user.name}</dd>
                     </div>
                     <div>
-                        <dt className="font-medium text-foreground">Tanggal Peminjaman</dt>
-                        <dd className="mt-1 text-muted-foreground">{props.loan.loan_date}</dd>
+                        <dt className="font-medium text-foreground">Tanggal Mulai Sewa</dt>
+                        <dd className="mt-1 text-muted-foreground">{props.loan.rent_start_date}</dd>
                     </div>
                 </CardHeader>
                 <CardContent className="divide-y divide-gray-200 py-6">
+                    <p className="pb-4 text-sm font-medium">Pembayaran: {props.loan.payment_status_label}</p>
+                    {props.loan.proof_url && (
+                        <a href={props.loan.proof_url} target="_blank" rel="noreferrer" className="inline-block py-3 text-sm font-medium text-orange-600 underline">Lihat bukti pembayaran</a>
+                    )}
                     <div className="flex items-center lg:items-start">
                         <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-200 lg:h-40 lg:w-40">
                             <img
@@ -57,6 +61,13 @@ export default function Show(props) {
                     </div>
                     <div className="lg-pt-0 flex pt-6 text-sm font-medium lg:items-center lg:border-none">
                         <div className="flex flex-1 justify-center">
+                            {props.loan.can_upload_payment_proof && (
+                                <Button variant="orange" asChild>
+                                    <Link href={route('front.loans.checkout', props.loan.id)}>
+                                        {props.loan.payment_status === 'failed' ? 'Kirim ulang bukti' : 'Bayar sewa'}
+                                    </Link>
+                                </Button>
+                            )}
                             <Button variant="link">
                                 <Link href={route('front.products.show', [props.loan.product.slug])}>Lihat Barang</Link>
                             </Button>

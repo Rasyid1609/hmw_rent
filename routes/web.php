@@ -4,38 +4,54 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FineFrontController;
 use App\Http\Controllers\LoanFrontController;
 use App\Http\Controllers\ProductFrontController;
 use App\Http\Controllers\CategoryFrontController;
+use App\Http\Controllers\BrandFrontController;
 use App\Http\Controllers\ReturnProductFrontController;
 
-Route::redirect('/', 'login');
+Route::get('/', [ProductFrontController::class, 'index'])->name('home');
 
-Route::controller(DashboardController::class)->middleware(['auth', 'verified', 'dynamic.role_permission'])->group(function(){
+Route::middleware('auth')->controller(PaymentProofController::class)->group(function () {
+    Route::get('payment-proofs/loans/{loan}', 'loan')->name('payment-proofs.loans.show');
+    Route::get('payment-proofs/fines/{fine}', 'fine')->name('payment-proofs.fines.show');
+});
+
+Route::controller(DashboardController::class)->middleware(['auth', 'role:admin|operator|accounting|member'])->group(function(){
     Route::get('dashboard', 'index')->name('dashboard');
 });
 
-Route::controller(ProductFrontController::class)->middleware(['auth', 'verified',  'dynamic.role_permission'])->group(function(){
+Route::controller(ProductFrontController::class)->group(function(){
     Route::get('products', 'index')->name('front.products.index');
     Route::get('products/{product:slug}', 'show')->name('front.products.show');
 });
 
-Route::controller(CategoryFrontController::class)->middleware(['auth', 'verified', 'dynamic.role_permission'])->group(function(){
+Route::controller(CategoryFrontController::class)->group(function(){
     Route::get('categories', 'index')->name('front.categories.index');
     Route::get('categories/{category:slug}', 'show')->name('front.categories.show');
 });
 
+Route::get('categories/{category:slug}/brands/{brand:slug}', [BrandFrontController::class, 'show'])
+    // Category membership is checked through the brand's products in the controller.
+    ->withoutScopedBindings()
+    ->name('front.brands.show');
+
 Route::controller(PaymentController::class)->group(function(){
-    Route::post('payments', 'create')->name('payments.create');
-    Route::post('payments/callback', 'callback')->name('payments.callback');
-    Route::get('payments/success', 'success')->name('payments.success');
-    Route::post('payments/{fine}/upload-proof', 'uploadProof')->name('payments.upload-proof');
+    Route::get('payments/success', 'success')
+        ->middleware(['auth', 'role:member'])->name('payments.success');
+    Route::post('payments/{fine}/upload-proof', 'uploadProof')
+        ->middleware(['auth', 'role:member'])->name('payments.upload-proof');
+    Route::patch('payments/{fine}/approve', 'approve')
+        ->middleware(['auth', 'role:admin|accounting'])->name('payments.approve');
+    Route::patch('payments/{fine}/reject', 'reject')
+        ->middleware(['auth', 'role:admin|accounting'])->name('payments.reject');
 });
 
-Route::controller(LoanFrontController::class)->middleware(['auth', 'verified', 'dynamic.role_permission'])->group(function(){
+Route::controller(LoanFrontController::class)->middleware(['auth', 'role:member'])->group(function(){
     Route::get('loans', 'index')->name('front.loans.index');
     Route::get('loans/{loan:loan_code}/detail', 'show')->name('front.loans.show');
     Route::post('loans/{product:slug}/create', 'store')->name('front.loans.store');
@@ -44,21 +60,21 @@ Route::controller(LoanFrontController::class)->middleware(['auth', 'verified', '
             ->name('front.loans.payment');
 });
 
-Route::controller(ReturnProductFrontController::class)->middleware(['auth', 'verified', 'dynamic.role_permission'])->group(function(){
+Route::controller(ReturnProductFrontController::class)->middleware(['auth', 'role:member'])->group(function(){
     Route::get('return-products', 'index')->name('front.return-products.index');
     Route::get('return-products/{returnProduct:return_product_code}/detail', 'show')->name('front.return-products.show');
     Route::post('return-products/{product:slug}/create/{loan:loan_code}', 'store')->name('front.return-products.store');
 });
 
 
-Route::middleware(['auth', 'dynamic.role_permission'])->group(function () {
+Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 Route::get('fines', FineFrontController::class)
-    ->middleware(['auth', 'verified', 'role:member'])
+    ->middleware(['auth', 'role:member'])
     ->name('front.fines.index');
 
 require __DIR__.'/auth.php';

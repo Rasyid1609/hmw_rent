@@ -28,7 +28,7 @@ export default function SidebarResponsive({ url, auth }) {
     <nav className="grid gap-6 text-lg font-medium">
             <ApplicationLogo />
             <nav className="grid items-start text-sm font-semibold lg:px-4">
-                {auth.role.some((role) => ['admin', 'operator', 'member'].includes(role)) && (
+                {auth.role.some((role) => ['admin', 'operator', 'member', 'accounting'].includes(role)) && (
                     <>
                         {/* Nav Menu Dashboard */}
                         <div className="px-3 py-2 text-sm font-semibold text-foreground">Dashboard</div>
@@ -66,7 +66,7 @@ export default function SidebarResponsive({ url, auth }) {
                     </>
                 )}
 
-                {auth.role.some((role) => ['operator'].includes(role)) && (
+                {auth.role.some((role) => ['admin', 'operator'].includes(role)) && (
                     <>
                         {/* Nav Menu Master */}
                         <div className="px-3 py-2 text-sm font-semibold text-foreground">Master</div>
@@ -88,12 +88,12 @@ export default function SidebarResponsive({ url, auth }) {
                             title="Produk"
                             icon={IconBrandProducthunt}
                         />
-                        <NavlinkResponsive
+                        {auth.role.includes('admin') && <NavlinkResponsive
                             url={route('admin.users.index')}
                             active={url.startsWith('/admin/users')}
                             title="Pengguna"
                             icon={IconUsersGroup}
-                        />
+                        />}
                         <NavlinkResponsive
                             url={route('admin.fine-settings.create')}
                             active={url.startsWith('/admin/fine-settings')}
@@ -128,7 +128,7 @@ export default function SidebarResponsive({ url, auth }) {
                     </>
                 )}
 
-                {auth.role.some((role) => ['admin', 'operator', 'accounting'].includes(role)) && (
+                {auth.role.some((role) => ['admin', 'operator'].includes(role)) && (
                     <>
                         {/* Transaksi */}
                         <div className="px-3 py-2 text-sm font-semibold text-foreground">Transaksi</div>

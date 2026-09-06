@@ -7,6 +7,7 @@ export function cn(...inputs) {
 
 export const FINEPAYMENTSTATUS = {
     PENDING: 'Tertunda',
+    WAITING_VERIFICATION: 'Menunggu Verifikasi',
     SUCCESS: 'Berhasil',
     FAILED: 'Gagal',
 };

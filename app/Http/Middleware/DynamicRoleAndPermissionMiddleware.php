@@ -40,12 +40,8 @@ class DynamicRoleAndPermissionMiddleware
                 return $next($request);
             } else {
                 throw UnauthorizedException::forRolesOrPermissions(
-                    $routeAccesses->pluck('role_id')->filter()->map(function($role_id){
-                        return Role::find($role_id)->name;
-                    })->all(),
-                    $routeAccesses->pluck('permission_id')->filter()->map(function($permissionId){
-                        return Role::find($permission_id)->name;
-                    })->all(),
+                    $routeAccesses->pluck('role_id')->filter()->map(fn ($roleId) => Role::find($roleId)?->name)->filter()->all(),
+                    $routeAccesses->pluck('permission_id')->filter()->map(fn ($permissionId) => Permission::find($permissionId)?->name)->filter()->all(),
                 );
             }
         } else {

@@ -5,6 +5,7 @@ import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Label } from '@/Components/ui/label';
+import { Input } from '@/Components/ui/input';
 import AppLayout from '@/Layouts/AppLayout';
 import { flashMessage } from '@/lib/utils';
 import { Link, useForm } from '@inertiajs/react';
@@ -14,10 +15,10 @@ import { toast } from 'sonner';
 
 export default function Create(props) {
     const { data, setData, reset, post, processing, errors } = useForm({
-        user: null,
-        product: null,
-        loan_date: props.page_data.date.loan_date,
-        due_date: props.page_data.date.due_date,
+        user_id: null,
+        product_id: null,
+        rent_start_date: props.page_data.date.rent_start_date,
+        rent_end_date: props.page_data.date.rent_end_date,
         _method: props.page_settings.method,
     });
 
@@ -59,20 +60,35 @@ export default function Create(props) {
                             <Label htmlFor="user">Nama</Label>
                             <ComboBox
                                 items={props.page_data.users}
-                                selectedItem={data.user}
-                                onSelect={(currentValue) => setData('user', currentValue)}
+                                selectedItem={data.user_id}
+                                onSelect={(currentValue) => setData('user_id', currentValue)}
                             />
-                            {errors.user && <InputError message={errors.user} />}
+                            {errors.user_id && <InputError message={errors.user_id} />}
                         </div>
 
                         <div className="grid w-full items-center gap-1.5">
                             <Label htmlFor="product">Produk</Label>
                             <ComboBox
                                 items={props.page_data.products}
-                                selectedItem={data.product}
-                                onSelect={(currentValue) => setData('product', currentValue)}
+                                selectedItem={data.product_id}
+                                onSelect={(currentValue) => setData('product_id', currentValue)}
                             />
-                            {errors.product && <InputError message={errors.product} />}
+                            {errors.product_id && <InputError message={errors.product_id} />}
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="rent_start_date">Mulai sewa</Label>
+                                <Input id="rent_start_date" type="date" value={data.rent_start_date}
+                                    onChange={(event) => setData('rent_start_date', event.target.value)} />
+                                <InputError message={errors.rent_start_date} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="rent_end_date">Batas pengembalian</Label>
+                                <Input id="rent_end_date" type="date" value={data.rent_end_date}
+                                    onChange={(event) => setData('rent_end_date', event.target.value)} />
+                                <InputError message={errors.rent_end_date || errors.rent_duration} />
+                            </div>
                         </div>
 
                         <div className="flex justify-end gap-2">

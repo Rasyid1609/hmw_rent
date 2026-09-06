@@ -19,7 +19,7 @@ class ProductFrontSingleResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'slug' => $this->slug,
-            'cover' => $this->cover ? Storage::url($this->cover) : null,
+            'cover' => $this->cover ? Storage::disk('public')->url($this->cover) : null,
             'price' => $this->price,
             'description' => $this->description,
             'release_year' => $this->release_year,

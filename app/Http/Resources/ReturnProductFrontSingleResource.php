@@ -22,19 +22,19 @@ class ReturnProductFrontSingleResource extends JsonResource
             'status' => $this->status,
             'return_date' => $this->return_date ? Carbon::parse($this->return_date)->format('d M Y') : null,
             'created_at' => $this->created_at->format('d M Y'),
-            'dayslate' => $this->dayslate,
+            'dayslate' => $this->loan && $this->return_date ? $this->getDaysLate() : 0,
             'product' => $this->whenLoaded('product', [
                 'id' => $this->product?->id,
                 'title' => $this->product?->title,
                 'slug' => $this->product?->slug,
-                'cover' => $this->product?->cover ? Storage::url($this->product?->cover) : null,
-                'synopsis' => $this->product?->synopsis,
+                'cover' => $this->product?->cover ? Storage::disk('public')->url($this->product?->cover) : null,
+                'description' => $this->product?->description,
             ]),
             'loan' => $this->whenLoaded('loan', [
                 'id' => $this->loan?->id,
                 'loan_code' => $this->loan?->loan_code,
-                'loan_date' => Carbon::parse($this->loan?->loan_date)->format('d M Y'),
-                'due_date' => Carbon::parse($this->loan?->due_date)->format('d M Y'),
+                'rent_start_date' => $this->loan?->rent_start_date?->format('d M Y'),
+                'rent_end_date' => $this->loan?->rent_end_date?->format('d M Y'),
             ]),
             'user' => $this->whenLoaded('user', [
                 'id' => $this->user?->id,
@@ -46,6 +46,7 @@ class ReturnProductFrontSingleResource extends JsonResource
                 'other_fee' => $this->fine?->other_fee,
                 'total_fee' => $this->fine?->total_fee,
                 'payment_status' => $this->fine?->payment_status,
+                'proof_url' => $this->fine?->proof_image ? route('payment-proofs.fines.show', $this->fine) : null,
             ]),
             'return_product_check' => $this->whenLoaded('returnProductCheck', [
                 'condition' => $this->returnProductCheck?->condition,

@@ -33,20 +33,16 @@ class UserRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users')->ignore($this->user),
+                Rule::unique('users', 'email')->ignore($this->route('user')),
             ],
-            'password' => Rule::when($this->routeIs('admin.users.store'), [
-                'required',
-                'min:8',
-                'max:255',
-                'confirmed'
-            ]),
-            Rule::when($this->routeIs('admin.users.update'), [
+            'password' => [
+                Rule::requiredIf($this->routeIs('admin.users.store')),
                 'nullable',
+                'string',
                 'min:8',
                 'max:255',
                 'confirmed',
-            ]),
+            ],
             'phone' => [
                 'nullable',
                 'min:10',

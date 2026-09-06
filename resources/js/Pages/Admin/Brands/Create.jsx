@@ -1,4 +1,5 @@
 import HeaderTitle from '@/Components/HeaderTitle';
+import ImageUpload from '@/Components/ImageUpload';
 import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -37,7 +38,7 @@ export default function Create(props) {
 
     const onHandleReset = () => {
         reset();
-        fileInputLogo.current.value = null;
+        fileInputLogo.current.reset();
     };
     return (
         <div className="flex w-full flex-col pb-32">
@@ -71,11 +72,12 @@ export default function Create(props) {
                         </div>
                         <div className="grid w-full items-center gap-1.5">
                             <Label htmlFor="logo">Logo</Label>
-                            <Input
-                                name="logo"
+                            <ImageUpload
                                 id="logo"
-                                type="file"
-                                onChange={(e) => setData(e.target.name, e.target.files[0])}
+                                value={data.logo}
+                                onChange={(file) => setData('logo', file)}
+                                disabled={processing}
+                                previewFit="contain"
                                 ref={fileInputLogo}
                             />
                             {errors.logo && <InputError message={errors.logo} />}
@@ -84,7 +86,7 @@ export default function Create(props) {
                             <Button type="button" variant="ghost" size="lg" onClick={onHandleReset}>
                                 Reset
                             </Button>
-                            <Button type="submit" variant="orange" size="lg">
+                            <Button type="submit" variant="orange" size="lg" disabled={processing}>
                                 Save
                             </Button>
                         </div>

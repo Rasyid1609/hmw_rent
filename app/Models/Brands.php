@@ -20,7 +20,7 @@ class Brands extends Model
 
     public function products(): HasMany
     {
-        return $this->hasMany(Product::class);
+        return $this->hasMany(Product::class, 'brand_id');
     }
 
     public function scopeFilter(Builder $query, array $filters): void

@@ -9,6 +9,7 @@ use App\Enums\MessageType;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
+use Spatie\Permission\Models\Role;
 use App\Http\Requests\Admin\AssignUserRequest;
 use App\Http\Resources\Admin\AssignUserResource;
 
@@ -55,7 +56,7 @@ class AssignUserController extends Controller
             ],
             'user' => $user->load('roles'),
             'roles' => Role::query()->select(['id', 'name'])->where('guard_name', 'web')->get()->map(fn($item) => [
-                'value' => $item->name,
+                'value' => (string) $item->id,
                 'label' => $item->name,
             ]),
         ]);
@@ -64,7 +65,11 @@ class AssignUserController extends Controller
     public function update(User $user, AssignUserRequest $request): RedirectResponse
     {
         try {
-            $user->syncRoles($request->roles);
+            $user->syncRoles(
+                collect($request->validated('roles'))
+                    ->map(fn ($roleId) => (int) $roleId)
+                    ->all()
+            );
 
             flashMessage("Berhasil sinkronisasi peran ke pengguna {$user->name}");
             return to_route('admin.assign-users.index');

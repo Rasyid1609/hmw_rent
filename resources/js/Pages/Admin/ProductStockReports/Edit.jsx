@@ -20,8 +20,8 @@ export default function Edit(props) {
         _method: props.page_settings.method,
     });
 
-    const calculateMinimumTotal = (available, loan, lost, damaged) => {
-        return available + loan + lost + damaged;
+    const calculateMinimumTotal = (loan, lost, damaged) => {
+        return Number(loan) + Number(lost) + Number(damaged);
     };
 
     const onHandleChange = (e) => {
@@ -31,16 +31,13 @@ export default function Edit(props) {
         setData((prevData) => {
             if (name == 'total') {
                 const minimumTotal = calculateMinimumTotal(
-                    prevData.available,
                     prevData.loan,
                     prevData.lost,
                     prevData.damaged,
                 );
 
                 const validTotal = newValue >= minimumTotal ? newValue : minimumTotal;
-                const totalDiff = validTotal - prevData.total;
-
-                const newAvailable = prevData.available + totalDiff;
+                const newAvailable = validTotal - minimumTotal;
 
                 return {
                     ...prevData,

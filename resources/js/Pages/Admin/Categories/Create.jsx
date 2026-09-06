@@ -1,4 +1,5 @@
 import HeaderTitle from '@/Components/HeaderTitle';
+import ImageUpload from '@/Components/ImageUpload';
 import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -37,7 +38,7 @@ export default function Create(props) {
 
     const onHandleReset = () => {
         reset();
-        fileInputCover.current.value = null;
+        fileInputCover.current.reset();
     };
     return (
         <div className="flex w-full flex-col pb-32">
@@ -72,11 +73,12 @@ export default function Create(props) {
 
                         <div className="grid w-full items-center gap-1.5">
                             <Label htmlFor="cover">Cover</Label>
-                            <Input
-                                name="cover"
+                            <ImageUpload
                                 id="cover"
-                                type="file"
-                                onChange={(e) => setData(e.target.name, e.target.files[0])}
+                                value={data.cover}
+                                onChange={(file) => setData('cover', file)}
+                                disabled={processing}
+                                defaultMode="fill"
                                 ref={fileInputCover}
                             />
                             {errors.cover && <InputError message={errors.cover} />}
@@ -85,7 +87,7 @@ export default function Create(props) {
                             <Button type="button" variant="ghost" size="lg" onClick={onHandleReset}>
                                 Reset
                             </Button>
-                            <Button type="submit" variant="orange" size="lg">
+                            <Button type="submit" variant="orange" size="lg" disabled={processing}>
                                 Save
                             </Button>
                         </div>

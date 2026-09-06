@@ -1,4 +1,5 @@
 import HeaderTitle from '@/Components/HeaderTitle';
+import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import { MultiSelect } from '@/Components/MultiSelect';
@@ -12,7 +13,9 @@ import React, { useState } from 'react'
 import { toast } from 'sonner';
 
 export default function Edit(props) {
-    const [selectedRoles, setSelectedRoles] = useState(Array.from(new Set(props.user.roles.map((role) => role.id))));
+    const [selectedRoles, setSelectedRoles] = useState(
+        Array.from(new Set(props.user.roles.map((role) => String(role.id))))
+    );
 
     const { data, setData, reset, post, processing, errors } = useForm({
         email: props.user.email ?? '',
@@ -78,7 +81,7 @@ export default function Edit(props) {
                         <MultiSelect
                             options={props.roles}
                             onValueChange={handleRoleChange}
-                            default={selectedRoles}
+                            defaultValue={selectedRoles}
                             placeholder="Pilih Peran"
                             variant="inverted"
                         />

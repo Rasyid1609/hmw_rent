@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\StorefrontRedirect;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 use Illuminate\Validation\Rules;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -19,8 +22,10 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        StorefrontRedirect::rememberProduct($request);
+
         return Inertia::render('Auth/Register');
     }
 
@@ -37,20 +42,25 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'min:8', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $user = User::create([
+        $user = DB::transaction(function () use ($request) {
+            $user = User::create([
             'name' => $request->name,
             'username' => $this->usernameGenerator($request->name),
             'email' => $request->email,
             'password' => Hash::make($request->password),
-        ]);
+            ]);
 
-        $user->assignRole('member');
+            $user->assignRole(Role::findOrCreate('member', 'web'));
+
+            return $user;
+        });
 
         event(new Registered($user));
 
         Auth::login($user);
+        $request->session()->regenerate();
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect()->intended(route('front.products.index', absolute: false));
     }
 
     /**

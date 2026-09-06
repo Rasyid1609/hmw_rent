@@ -11,8 +11,11 @@ use App\Models\Category;
 use App\Enums\MessageType;
 use App\Enums\ProductStatus;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use App\Http\Requests\Admin\ProductRequest;
 use App\Http\Resources\Admin\ProductResource;
 
@@ -73,23 +76,49 @@ class ProductController extends Controller
 
     public function store(ProductRequest $request): RedirectResponse
     {
+        $cover = null;
+
         try {
-            Product::create([
-                'prod_code' => $this->productCode(),
-                'title' => $title = $request->title,
-                'slug' => str()->lower(str()->slug($title). str()->random(4)),
-                'description' => $request->description,
-                'release_year' => $request->release_year,
-                'status' => $request->total > 0 ? ProductStatus::AVAILABLE->value : ProductStatus::UNAVAILABLE->value,
-                'cover' => $this->upload_file($request, 'cover', 'products'),
-                'price' => $request->price,
-                'category_id' => $request->category_id,
-                'brand_id' => $request->brand_id,
-            ]);
+            $cover = $this->upload_file($request, 'cover', 'products');
+
+            DB::transaction(function () use ($request, $cover): void {
+                $total = $request->integer('total');
+                $title = $request->string('title')->toString();
+
+                $product = new Product([
+                    'prod_code' => $this->productCode(),
+                    'title' => $title,
+                    'slug' => str()->lower(str()->slug($title). str()->random(4)),
+                    'description' => $request->description,
+                    'release_year' => $request->release_year,
+                    'cover' => $cover,
+                    'price' => $request->price,
+                    'category_id' => $request->category_id,
+                    'brand_id' => $request->brand_id,
+                ]);
+
+                // `status` is intentionally assigned directly because it is not mass assignable.
+                $product->status = $total > 0
+                    ? ProductStatus::AVAILABLE->value
+                    : ProductStatus::UNAVAILABLE->value;
+                $product->save();
+
+                $product->stock()->create([
+                    'total' => $total,
+                    'available' => $total,
+                    'loan' => 0,
+                    'lost' => 0,
+                    'damaged' => 0,
+                ]);
+            }, 3);
 
             flashMessage(MessageType::CREATED->message('Barang'));
             return to_route('admin.products.index');
         } catch(Throwable $err) {
+            if ($cover) {
+                Storage::disk('public')->delete($cover);
+            }
+
             flashMessage(MessageType::ERROR->message(error: $err->getMessage()), 'error');
             return to_route('admin.products.index');
         }
@@ -105,7 +134,8 @@ class ProductController extends Controller
                 'method' => 'PUT',
                 'action' => route('admin.products.update', $product),
             ],
-            'product' =>$product,
+            'product' => $product->load('stock'),
+            'cover_url' => $product->cover ? Storage::disk('public')->url($product->cover) : null,
 
             'page_data' => [
                 'categories' => Category::query()->select(['id', 'name'])->get()->map(fn($item) => [
@@ -122,22 +152,80 @@ class ProductController extends Controller
 
     public function update(Product $product, ProductRequest $request): RedirectResponse
     {
+        $newCover = null;
+        $previousCover = null;
+
         try {
-            $product->update([
-                'title' => $title = $request->title,
-                'slug' => $title !== $product->title ?  str()->lower(str()->slug($title). str()->random(4)) : $product->slug,
-                'status' => $request->total > 0 ? ProductStatus::AVAILABLE->value : ProductStatus::UNAVAILABLE->value,
-                'cover' => $this->update_file($request, $product, 'cover', 'products'),
-                'description' => $request->description,
-                'release_year' => $request->release_year,
-                'price' => $request->price,
-                'category_id' => $request->category_id,
-                'brand_id' => $request->brand_id,
-            ]);
+            if ($request->hasFile('cover')) {
+                $newCover = $request->file('cover')->store('products', 'public');
+                $previousCover = $product->cover;
+            }
+
+            DB::transaction(function () use ($product, $request, $newCover): void {
+                $stock = $product->stock()->lockForUpdate()->first();
+
+                if (! $stock) {
+                    $stock = $product->stock()->create([
+                        'total' => 0,
+                        'available' => 0,
+                        'loan' => 0,
+                        'lost' => 0,
+                        'damaged' => 0,
+                    ]);
+                }
+
+                $total = $request->integer('total');
+                $reserved = (int) $stock->loan + (int) $stock->lost + (int) $stock->damaged;
+
+                if ($total < $reserved) {
+                    throw ValidationException::withMessages([
+                        'total' => 'Total stok tidak boleh lebih kecil dari unit yang sedang dipinjam, hilang, atau rusak.',
+                    ]);
+                }
+
+                $available = $total - $reserved;
+                $title = $request->string('title')->toString();
+
+                $product->fill([
+                    'title' => $title,
+                    'slug' => $title !== $product->title
+                        ? str()->lower(str()->slug($title).str()->random(4))
+                        : $product->slug,
+                    'cover' => $newCover ?? $product->cover,
+                    'description' => $request->description,
+                    'release_year' => $request->release_year,
+                    'price' => $request->price,
+                    'category_id' => $request->category_id,
+                    'brand_id' => $request->brand_id,
+                ]);
+                $product->status = $available > 0
+                    ? ProductStatus::AVAILABLE->value
+                    : ProductStatus::UNAVAILABLE->value;
+                $product->save();
+
+                $stock->update([
+                    'total' => $total,
+                    'available' => $available,
+                ]);
+            }, 3);
+
+            if ($previousCover && $previousCover !== $newCover) {
+                Storage::disk('public')->delete($previousCover);
+            }
 
             flashMessage(MessageType::UPDATED->message('Barang'));
             return to_route('admin.products.index');
+        } catch (ValidationException $exception) {
+            if ($newCover) {
+                Storage::disk('public')->delete($newCover);
+            }
+
+            throw $exception;
         } catch(Throwable $err) {
+            if ($newCover) {
+                Storage::disk('public')->delete($newCover);
+            }
+
             flashMessage(MessageType::ERROR->message(error: $err->getMessage()), 'error');
             return to_route('admin.products.index');
         }
@@ -146,8 +234,14 @@ class ProductController extends Controller
     public function destroy(Product $product): RedirectResponse
     {
         try {
+            DB::transaction(function () use ($product): void {
+                $lockedProduct = Product::query()->lockForUpdate()->findOrFail($product->id);
+                if ($lockedProduct->loans()->exists()) {
+                    throw new \RuntimeException('Barang dengan riwayat penyewaan tidak dapat dihapus.');
+                }
+                $lockedProduct->delete();
+            }, 3);
             $this->delete_file($product, 'cover');
-            $product->delete();
 
             flashMessage(MessageType::DELETED->message('Barang'));
             return to_route('admin.products.index');
@@ -162,6 +256,7 @@ class ProductController extends Controller
         $prefix = 'PRD-';
 
         $lastProduct = Product::query()
+            ->lockForUpdate()
             ->where('prod_code', 'like', $prefix . '%')
             ->orderByRaw('CAST(SUBSTRING(prod_code, -4) AS UNSIGNED) DESC')
             ->first();

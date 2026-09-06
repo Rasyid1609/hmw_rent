@@ -49,8 +49,8 @@ export default function Index(props) {
                                     <TableCell>{index + 1 + (meta.current_page - 1) * meta.per_page}</TableCell>
                                     <TableCell>{fine.loan.loan_code}</TableCell>
                                     <TableCell>{fine.return_product.return_product_code}</TableCell>
-                                    <TableCell>{fine.loan.loan_date}</TableCell>
-                                    <TableCell>{fine.loan.due_date}</TableCell>
+                                    <TableCell>{fine.loan.rent_start_date}</TableCell>
+                                    <TableCell>{fine.loan.rent_end_date}</TableCell>
                                     <TableCell>{fine.return_product.return_date}</TableCell>
                                     <TableCell className="text-red-500">{formatToRupiah(fine.late_fee)}</TableCell>
                                     <TableCell className="text-red-500">{formatToRupiah(fine.other_fee)}</TableCell>

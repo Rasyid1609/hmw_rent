@@ -23,7 +23,7 @@ class ProductResource extends JsonResource
             'description' => $this->description,
             'release_year' => $this->release_year,
             'status' => $this->status,
-            'cover' => $this->cover ? Storage::url($this->cover) : null,
+            'cover' => $this->cover ? Storage::disk('public')->url($this->cover) : null,
             'price' => number_format($this->price, 0, ',', '.'),
             'created_at' => $this->created_at->format('d M Y'),
             'category' => [

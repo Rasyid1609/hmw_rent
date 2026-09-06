@@ -75,12 +75,27 @@ class ReturnProduct extends Model
 
     public function scopeSorting(Builder $query, array $sorts): void
     {
-        $query->when($sorts['field'] ?? null && $sorts['direction'] ?? null, function($query) use($sorts){
-            match($sorts['field']){
-                'loan_code' => $query->whereHas('loan', fn($query) => $query->orderBy('loan_code', $sorts['direction'])),
-                default => $query->orderBy($sorts['field'], $sorts['direction']),
-            };
-        });
+        $field = $sorts['field'] ?? null;
+        $direction = $sorts['direction'] ?? null;
+
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            return;
+        }
+
+        $loanFields = [
+            'loan_code' => 'loan_code',
+            'loan_date' => 'rent_start_date',
+            'due_date' => 'rent_end_date',
+            'rent_start_date' => 'rent_start_date',
+            'rent_end_date' => 'rent_end_date',
+        ];
+
+        if (is_string($field) && isset($loanFields[$field])) {
+            $query->orderBy(Loan::select($loanFields[$field])
+                ->whereColumn('loans.id', 'return_products.loan_id')->limit(1), $direction);
+        } elseif (in_array($field, ['id', 'return_product_code', 'user_id', 'product_id', 'status', 'return_date', 'created_at'], true)) {
+            $query->orderBy('return_products.'.$field, $direction);
+        }
     }
 
     public function scopeReturned(Builder $query): Builder
@@ -105,11 +120,27 @@ class ReturnProduct extends Model
 
     public function isOnTime(): bool
     {
-        return Carbon::today()->lessThanOrEqualTo(Carbon::parse($this->loan->due_date));
+        if (! $this->return_date || ! $this->loan?->rent_end_date) {
+            return false;
+        }
+
+        $returnDate = Carbon::parse($this->return_date)->startOfDay();
+        $rentEndDate = Carbon::parse($this->loan->rent_end_date)->startOfDay();
+
+        return $returnDate->lessThanOrEqualTo($rentEndDate);
     }
 
     public function getDaysLate(): int
     {
-        return max(0, Carbon::parse($this->loan->loan_date)->diffInDays(Carbon::parse($this->return_date)));
+        if (! $this->return_date || ! $this->loan?->rent_end_date) {
+            return 0;
+        }
+
+        $returnDate = Carbon::parse($this->return_date)->startOfDay();
+        $rentEndDate = Carbon::parse($this->loan->rent_end_date)->startOfDay();
+
+        return $returnDate->lessThanOrEqualTo($rentEndDate)
+            ? 0
+            : (int) $rentEndDate->diffInDays($returnDate);
     }
 }

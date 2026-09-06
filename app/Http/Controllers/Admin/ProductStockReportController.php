@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use Throwable;
-use App\Models\Stock;
 use Inertia\Response;
 use App\Models\Stocks;
 use App\Enums\MessageType;
+use App\Enums\ProductStatus;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
@@ -58,20 +60,28 @@ class ProductStockReportController extends Controller
     public function update(Stocks $stock, StockRequest $request): RedirectResponse
     {
         try {
-            $minimum_total = $request->available + $request->loan + $request->lost + $request->damaged;
+            DB::transaction(function () use ($stock, $request): void {
+                $lockedStock = Stocks::query()->lockForUpdate()->findOrFail($stock->id);
+                $reserved = (int) $lockedStock->loan + (int) $lockedStock->lost + (int) $lockedStock->damaged;
+                $total = $request->integer('total');
 
-            if($request->total < $minimum_total){
-                flashMessage('Total tidak boleh lebih kecil dari peminjaman yang tersedia, dipinjam, hilang, dan rusak', 'error');
-                return to_route('admin.product-stock-reports.index');
-            }
+                if ($total < $reserved) {
+                    throw ValidationException::withMessages([
+                        'total' => 'Total stok tidak boleh lebih kecil dari unit yang dipinjam, hilang, atau rusak.',
+                    ]);
+                }
 
-            $stock->update([
-                'total' => $request->total,
-                'available' => $request->available,
-            ]);
+                $available = $total - $reserved;
+                $lockedStock->update(['total' => $total, 'available' => $available]);
+                $product = $lockedStock->product;
+                $product->status = $available > 0 ? ProductStatus::AVAILABLE : ProductStatus::UNAVAILABLE;
+                $product->save();
+            }, 3);
 
             flashMessage(MessageType::UPDATED->message('Stok'));
             return to_route('admin.product-stock-reports.index');
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch(Throwable $err) {
             flashMessage(MessageType::ERROR->message($err->getMessage()), 'error');
             return to_route('admin.product-stock-reports.index');

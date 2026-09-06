@@ -22,7 +22,8 @@ class UpdateLoanPaymentStatusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_status' => ['required', 'in:pending,paid,failed'],
+            'payment_status' => ['required', 'in:paid,failed'],
+            'reviewed_proof' => ['required', 'string', 'max:255'],
         ];
     }
 
@@ -30,6 +31,7 @@ class UpdateLoanPaymentStatusRequest extends FormRequest
     {
         return [
             'payment_status' => 'Status Pembayaran',
+            'reviewed_proof' => 'Bukti pembayaran yang diperiksa',
         ];
     }
 }

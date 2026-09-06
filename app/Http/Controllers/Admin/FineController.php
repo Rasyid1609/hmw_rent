@@ -12,7 +12,10 @@ class FineController extends Controller
 {
     public function create(ReturnProduct $returnProduct) : Response
     {
+        abort_unless($returnProduct->fine()->exists(), 404);
+
         return inertia('Admin/Fines/Create', [
+            'can_review' => auth()->user()->hasAnyRole(['admin', 'accounting']),
             'page_settings' => [
                 'title' => 'Denda',
                 'subtitle' => 'Selesaikan pembayaran denda terlebih dahulu.'

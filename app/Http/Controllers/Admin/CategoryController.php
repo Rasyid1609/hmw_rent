@@ -6,6 +6,9 @@ use Throwable;
 use App\Hasfile;
 use Inertia\Response;
 use App\Models\Category;
+use App\Models\Product;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Enums\MessageType;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -84,6 +87,7 @@ class CategoryController extends Controller
                 'action' => route('admin.categories.update', $category)
             ],
             'category' => $category,
+            'cover_url' => $category->cover ? Storage::disk('public')->url($category->cover) : null,
         ]);
     }
 
@@ -107,9 +111,14 @@ class CategoryController extends Controller
     public function destroy(Category $category): RedirectResponse
     {
         try {
+            DB::transaction(function () use ($category): void {
+                $lockedCategory = Category::query()->lockForUpdate()->findOrFail($category->id);
+                if (Product::where('category_id', $category->id)->exists()) {
+                    throw new \RuntimeException('Kategori yang masih digunakan oleh barang tidak dapat dihapus.');
+                }
+                $lockedCategory->delete();
+            }, 3);
             $this->delete_file($category, 'cover');
-
-            $category->delete();
             flashMessage(MessageType::DELETED->message('Kategori'));
             return to_route('admin.categories.index');
         } catch (Throwable $err) {

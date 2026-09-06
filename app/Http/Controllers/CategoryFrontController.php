@@ -3,10 +3,9 @@
 namespace App\Http\Controllers;
 
 use Inertia\Response;
-use App\Models\Product;
+use App\Models\Brands;
 use App\Models\Category;
-use Illuminate\Http\Request;
-use App\Http\Resources\ProductFrontResource;
+use App\Http\Resources\BrandFrontResource;
 use App\Http\Resources\CategoryFrontResource;
 
 class CategoryFrontController extends Controller
@@ -21,7 +20,7 @@ class CategoryFrontController extends Controller
         return inertia('Front/Categories/Index', [
             'page_settings' => [
                 'title' => 'Kategori',
-                'subtitle' => 'Menampilkan semua kategori yang tersedia pada plathform ini.',
+                'subtitle' => 'Jelajahi barang sewaan berdasarkan kategori.',
             ],
             'categories' => CategoryFrontResource::collection($categories)->additional([
                 'meta' => [
@@ -33,19 +32,24 @@ class CategoryFrontController extends Controller
 
     public function show(Category $category): Response
     {
-        $products = Product::query()
-            ->select(['id', 'title', 'slug', 'status', 'cover', 'description', 'category_id'])
-            ->where('category_id', $category->id)
+        $inCategory = fn ($query) => $query->where('category_id', $category->id);
+        $brands = Brands::query()
+            ->select(['id', 'name', 'slug', 'logo'])
+            ->whereHas('products', $inCategory)
+            ->withCount(['products' => $inCategory])
+            ->orderBy('name')
+            ->orderBy('id')
             ->paginate(12);
 
-        return inertia('Front/Categories/Show', [
+        return inertia('Front/Brands/Index', [
             'page_settings' => [
-                'title' => $category->name,
-                'subtitle' => "Menampilkan semua barang yang tersedia pada kategori {$category->name} pada platform ini",
+                'title' => "Brand {$category->name}",
+                'subtitle' => "Pilih brand untuk melihat barang sewaan dalam kategori {$category->name}.",
             ],
-            'products' => ProductFrontResource::collection($products)->additional([
+            'category' => new CategoryFrontResource($category),
+            'brands' => BrandFrontResource::collection($brands)->additional([
                 'meta' => [
-                    'has_pages' => $products->hasPages(),
+                    'has_pages' => $brands->hasPages(),
                 ],
             ]),
         ]);

@@ -6,29 +6,27 @@ use Carbon\Carbon;
 use App\Models\Loan;
 use Inertia\Response;
 use App\Models\Product;
-use Illuminate\Http\Request;
 use App\Models\ReturnProduct;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Support\Facades\DB;
 use App\Http\Resources\ReturnProductFrontResource;
 use App\Http\Resources\ReturnProductFrontSingleResource;
 
 class ReturnProductFrontController extends Controller
 {
-    public static function middleware(): array
-    {
-        return [
-            new Middleware('password.confirm', except: ['store']),
-        ];
-    }
-
     public function index(): Response
     {
         $return_products = ReturnProduct::query()
         ->select(['id', 'return_product_code', 'status', 'loan_id', 'user_id', 'product_id', 'return_date', 'created_at'])
         ->where('user_id', auth()->user()->id)
-        ->filter(request()->only(['search']))
+        ->when(request()->filled('search'), function ($query) {
+            $search = '%'.request('search').'%';
+            $query->where(fn ($query) => $query
+                ->whereAny(['return_product_code', 'status'], 'like', $search)
+                ->orWhereHas('loan', fn ($query) => $query->where('loan_code', 'like', $search))
+                ->orWhereHas('user', fn ($query) => $query->where('name', 'like', $search))
+                ->orWhereHas('product', fn ($query) => $query->where('title', 'like', $search)));
+        })
         ->sorting(request()->only(['field', 'direction']))
         ->with(['product', 'fine', 'loan', 'user', 'returnProductCheck'])
         ->latest('created_at')
@@ -60,6 +58,8 @@ class ReturnProductFrontController extends Controller
 
     public function show(ReturnProduct $returnProduct): Response
     {
+        abort_unless((int) $returnProduct->user_id === (int) auth()->id(), 403);
+
         return inertia('Front/ReturnProducts/Show', [
             'page_settings' => [
                 'title' => 'Detail Pengembalian Barang',
@@ -79,12 +79,22 @@ class ReturnProductFrontController extends Controller
 
     public function store(Product $product, Loan $loan): RedirectResponse
     {
-        $return_product = $loan->returnProduct()->create([
-            'return_product_code' => str()->lower(str()->random(10)),
-            'product_id' => $product->id,
-            'user_id' => auth()->user()->id,
-            'return_date' => Carbon::today(),
-        ]);
+        abort_unless((int) $loan->user_id === (int) auth()->id(), 403);
+        abort_unless((int) $loan->product_id === (int) $product->id, 404);
+
+        $return_product = DB::transaction(function () use ($loan, $product): ReturnProduct {
+            $lockedLoan = Loan::query()->lockForUpdate()->findOrFail($loan->id);
+            abort_unless((int) $lockedLoan->user_id === (int) auth()->id(), 403);
+            abort_unless((int) $lockedLoan->product_id === (int) $product->id, 404);
+
+            // Retried submissions resolve to the original return without moving stock again.
+            return $lockedLoan->returnProduct()->firstOrCreate([], [
+                'return_product_code' => str()->lower(str()->random(10)),
+                'product_id' => $lockedLoan->product_id,
+                'user_id' => $lockedLoan->user_id,
+                'return_date' => Carbon::today('Asia/Jakarta'),
+            ]);
+        }, 3);
 
         flashMessage('Barang anda sedang dilakukan pengecekan oleh petugas kami');
         return to_route(

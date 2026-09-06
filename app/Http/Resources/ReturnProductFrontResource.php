@@ -29,15 +29,15 @@ class ReturnProductFrontResource extends JsonResource
             'loan' => $this->whenLoaded('loan', [
                 'id' => $this->loan?->id,
                 'loan_code' => $this->loan?->loan_code,
-                'rent_start_date' => Carbon::parse($this->loan?->rent_start_date)->format('d M Y'),
-                'rent_end_date' => Carbon::parse($this->loan?->rent_end_date)->format('d M Y'),
+                'rent_start_date' => $this->loan?->rent_start_date?->format('d M Y'),
+                'rent_end_date' => $this->loan?->rent_end_date?->format('d M Y'),
             ]),
             'user' => $this->whenLoaded('user', [
                 'id' => $this->user?->id,
                 'name' => $this->user?->name,
             ]),
             'fine' => $this->whenLoaded('fine', $this->fine?->total_fee),
-            'return_product_check' => $this->whenLoaded('returnProductCheck', $this->returnBookCheck?->condition)
+            'return_product_check' => $this->whenLoaded('returnProductCheck', $this->returnProductCheck?->condition)
         ];
 
     }

@@ -99,8 +99,8 @@ export default function Index(props) {
                                     <TableCell>{fine.loan.loan_code}</TableCell>
                                     <TableCell>{fine.return_product.return_product_code}</TableCell>
                                     <TableCell>{fine.user.name}</TableCell>
-                                    <TableCell>{fine.loan.loan_date}</TableCell>
-                                    <TableCell>{fine.loan.due_date}</TableCell>
+                                    <TableCell>{fine.loan.rent_start_date}</TableCell>
+                                    <TableCell>{fine.loan.rent_end_date}</TableCell>
                                     <TableCell>{fine.return_product.return_date}</TableCell>
                                     <TableCell>{formatToRupiah(fine.late_fee)}</TableCell>
                                     <TableCell>{formatToRupiah(fine.other_fee)}</TableCell>

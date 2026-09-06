@@ -1,152 +1,210 @@
-import { Button } from '@/Components/ui/button';
-import { Calendar } from '@/Components/ui/calendar';
-import { Label } from '@/Components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/Components/ui/popover';
-import AppLayout from '@/Layouts/AppLayout';
-import { flashMessage } from '@/lib/utils';
-import { router, useForm } from '@inertiajs/react';
-import { ChevronDownIcon } from 'lucide-react';
-import { use, useState } from 'react';
-import { toast } from 'sonner';
+import StorefrontLayout from '@/Layouts/StorefrontLayout';
+import { formatToRupiah } from '@/lib/utils';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
+import { ArrowLeft, CalendarDays, CheckCircle2, ImageOff, LogIn, Minus, PackageCheck, Plus, ShieldCheck } from 'lucide-react';
 
-export default function Show(props) {
-    const [duration, setDuration] = useState(1);
-    const totalPrice = props.product.price * duration;
+const staffRoles = ['admin', 'operator', 'accounting'];
 
-    const [open, setOpen] = useState (false);
-    const [date, setDate] = useState(undefined);
+function localDateValue(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
 
-    const { data, setData, reset, post, processing, errors } = useForm({
-            rent_duration: 1,
-            rent_start_date: '',
+    return `${year}-${month}-${day}`;
+}
+
+function initialDuration(value) {
+    const duration = Number(value);
+
+    return Number.isInteger(duration) && duration >= 1 && duration <= 365 ? duration : 1;
+}
+
+export default function Show({ page_settings: pageSettings, product }) {
+    const { props, url } = usePage();
+    const query = new URLSearchParams(url.split('?')[1] ?? '');
+    const today = localDateValue();
+    const requestedDate = query.get('rent_start_date');
+    const rentStartDate = requestedDate && requestedDate >= today ? requestedDate : today;
+    const user = props.auth?.user ?? null;
+    const roles = Array.isArray(user?.role) ? user.role : [];
+    const isMember = roles.includes('member');
+    const isStaff = roles.some((role) => staffRoles.includes(role));
+    const available = Number(product.stock?.available ?? 0);
+    const inStock = available > 0;
+    const { data, setData, post, processing, errors } = useForm({
+        rent_duration: initialDuration(query.get('rent_duration')),
+        rent_start_date: rentStartDate,
+    });
+    const total = Number(product.price ?? 0) * data.rent_duration;
+
+    const updateDuration = (nextValue) => {
+        const duration = Math.min(365, Math.max(1, Number(nextValue) || 1));
+        setData('rent_duration', duration);
+    };
+
+    const rentAsMember = (event) => {
+        event.preventDefault();
+
+        post(route('front.loans.store', product.slug), {
+            preserveScroll: true,
         });
+    };
+
+    const continueAsGuest = () => {
+        router.get(
+            route('login', {
+                product: product.slug,
+                rent_duration: data.rent_duration,
+                rent_start_date: data.rent_start_date,
+            }),
+        );
+    };
+
     return (
-        <div className="flex w-full flex-col space-y-12 pb-32">
-            <div className="lg:grid-row lg:grid lg:grid-cols-12 lg:gap-x-8 lg:gap-y-10">
-                <div className="lg:col-span-4 lg:row-end-1">
-                    <div className="aspect-h-3 aspect-w-4 max-w-sm overflow-hidden rounded-lg bg-gray-100">
-                        <img src={props.product.cover} alt={props.product.title} />
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+            <Link href={route('front.products.index')} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-orange-600 dark:hover:text-orange-400">
+                <ArrowLeft className="size-4" />
+                Kembali ke katalog
+            </Link>
+
+            <div className="mt-7 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.85fr)] lg:items-start">
+                <div className="overflow-hidden rounded-3xl border border-border bg-muted shadow-sm">
+                    <div className="relative aspect-[4/3]">
+                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-500/15 via-muted to-sky-500/10 text-muted-foreground">
+                            <ImageOff className="size-12" aria-hidden="true" />
+                        </div>
+                        {product.cover && (
+                            <img
+                                src={product.cover}
+                                alt={product.title}
+                                onError={(event) => event.currentTarget.classList.add('hidden')}
+                                className="relative size-full object-cover"
+                            />
+                        )}
+                        <span className={`absolute left-5 top-5 rounded-full px-3 py-1.5 text-sm font-bold ${inStock ? 'bg-emerald-500 text-white' : 'bg-foreground text-background'}`}>
+                            {inStock ? `${available} unit tersedia` : 'Stok sedang habis'}
+                        </span>
                     </div>
                 </div>
 
-                <div className="mt-14 lg:col-span-8 lg:row-span-2 lg:row-end-2 lg:mt-0 lg:max-w-none">
-                    <div className="flex flex-col-reverse">
-                        <div className="mt-4">
-                            <h2 className="text-xl font-bold tracking-tighter text-foreground">{props.product.title}</h2>
-                            <p className="mt-2 text-sm text-muted-foreground">
-                                (Ditambahkan pada <time dateTime={props.product.created_at}>{props.product.created_at}</time>)
-                            </p>
-                        </div>
-                    </div>
-                    <p className="mt-6 text-sm leading-relaxed text-muted-foreground">{props.product.description}</p>
+                <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-400">{product.category?.name ?? 'Barang sewaan'}</p>
+                    <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{product.title}</h1>
+                    {product.created_at && <p className="mt-3 text-sm text-muted-foreground">Ditambahkan pada {product.created_at}</p>}
+                    <p className="mt-6 whitespace-pre-line text-base leading-relaxed text-muted-foreground">{product.description || 'Informasi barang belum tersedia.'}</p>
 
-                    <div className="mt-6">
-                        <h3 className="text-sm font-medium text-foreground">Durasi Sewa</h3>
-                        <div className="mt-3 flex items-center gap-4">
-                            <Button
-                             variant="outline"
-                             size="icon"
-                             onClick={() =>
-                                setDuration((prev) => {
-                                    const newValue = Math.max(1, prev - 1);
-                                    setData('rent_duration', newValue);
-                                    return newValue;
-                                })
-                            }
-                            >
-                                -
-                            </Button>
-                            <span className="text-lg font-semibold">{duration}</span>
-                            <Button
-                             variant="outline"
-                             size="icon"
-                             onClick={() => setDuration((prev) => {
-                                    const newValue = Math.min(30, prev +1);
-                                    setData('rent_duration', newValue);
-                                    return newValue;
-                                })
-                             }
-                            >
-                                +
-                            </Button>
+                    <div className="mt-8 grid gap-3 border-y border-border py-6 sm:grid-cols-3">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Harga</p>
+                            <p className="mt-1 text-lg font-black text-orange-600 dark:text-orange-400">{formatToRupiah(product.price ?? 0)}</p>
+                            <p className="text-xs text-muted-foreground">per hari</p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kategori</p>
+                            <p className="mt-1 font-semibold">{product.category?.name ?? '—'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Merek</p>
+                            <p className="mt-1 font-semibold">{product.brand?.name ?? '—'}</p>
                         </div>
                     </div>
 
-                    <div className="mt-6 flex flex-col gap-3">
-                        <Label htmlFor='rent_start_date'>Tanggal Mulai Sewa</Label>
-                        <Popover open={open} onOpenChange={setOpen}>
-                            <PopoverTrigger asChild>
-                                <Button
-                                variant="outline"
-                                id="date"
-                                className="w-48 justify-between font-normal"
-                                >
-                                {date ? date.toLocaleDateString() : "Select date"}
-                                <ChevronDownIcon/>
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto overflow-hidden p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={date}
-                                    captionLayout="dropdown"
-                                    onSelect={(date) => {
-                                    if (!date) return;
-                                    setDate(date);
-                                    setData('rent_start_date', date.toISOString().split('T')[0]);
-                                    setOpen(false);
-                                    }}
+                    <form onSubmit={rentAsMember} className="mt-8 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h2 className="text-xl font-bold">Atur jadwal sewa</h2>
+                                <p className="mt-1 text-sm text-muted-foreground">Pilih durasi dan tanggal mulai sebelum melanjutkan.</p>
+                            </div>
+                            <CalendarDays className="mt-1 size-5 shrink-0 text-orange-500" />
+                        </div>
+
+                        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                            <div>
+                                <label htmlFor="rent_duration" className="text-sm font-semibold">Durasi sewa</label>
+                                <div className="mt-2 flex items-center rounded-xl border border-border bg-background p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => updateDuration(data.rent_duration - 1)}
+                                        disabled={data.rent_duration <= 1}
+                                        className="inline-flex size-10 items-center justify-center rounded-lg transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                                        aria-label="Kurangi durasi"
+                                    >
+                                        <Minus className="size-4" />
+                                    </button>
+                                    <input
+                                        id="rent_duration"
+                                        type="number"
+                                        min="1"
+                                        max="365"
+                                        value={data.rent_duration}
+                                        onChange={(event) => updateDuration(event.target.value)}
+                                        className="h-10 min-w-0 flex-1 border-0 bg-transparent p-0 text-center text-lg font-bold focus:ring-0"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => updateDuration(data.rent_duration + 1)}
+                                        disabled={data.rent_duration >= 365}
+                                        className="inline-flex size-10 items-center justify-center rounded-lg transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                                        aria-label="Tambah durasi"
+                                    >
+                                        <Plus className="size-4" />
+                                    </button>
+                                </div>
+                                <p className="mt-2 text-xs text-muted-foreground">hari</p>
+                                {errors.rent_duration && <p className="mt-2 text-sm text-destructive">{errors.rent_duration}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="rent_start_date" className="text-sm font-semibold">Tanggal mulai sewa</label>
+                                <input
+                                    id="rent_start_date"
+                                    type="date"
+                                    min={today}
+                                    value={data.rent_start_date}
+                                    onChange={(event) => setData('rent_start_date', event.target.value)}
+                                    className="mt-2 h-12 w-full rounded-xl border-border bg-background px-3 text-sm focus:border-orange-500 focus:ring-orange-500"
                                 />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
+                                {errors.rent_start_date && <p className="mt-2 text-sm text-destructive">{errors.rent_start_date}</p>}
+                            </div>
+                        </div>
 
-                    <div className="mt-10 flex">
-                        {props.product.stock.available > 0 ? (
-                            <Button
-                                size="lg"
-                                disabled={processing || !data.rent_start_date}
-                                onClick={() =>
-                                    post(
-                                        route('front.loans.store', props.product.slug),
-                                        {
-                                            preserveScroll: true,
-                                            preserveState: true,
-                                            onSuccess: (page) => {
-                                                const flash = flashMessage(page);
-                                                if (flash) toast[flash.type](flash.message);
-                                            },
-                                        }
-                                    )
-                            }
-                            >
-                                Sewa Sekarang
-                            </Button>
-                        ) : (
-                            <Button size="lg" disabled>
-                                Barang Habis
-                            </Button>
-                        )}
-                    </div>
+                        <div className="mt-6 flex items-end justify-between gap-4 rounded-xl bg-muted/60 p-4">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Estimasi total sewa</p>
+                                <p className="mt-1 text-2xl font-black text-orange-600 dark:text-orange-400">{formatToRupiah(total)}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">{data.rent_duration} hari × {formatToRupiah(product.price ?? 0)}</p>
+                            </div>
+                        </div>
 
-                    <div className="mt-10 flex flex-col justify-start gap-10 border-t border-gray-200 pt-10 lg:flex-row">
-                        <div>
-                            <h3 className="text-sm font-medium text-foreground">Brand</h3>
-                            <p className="mt-4 text-sm text-muted-foreground">{props.product?.brand?.name ?? '-'}</p>
+                        <div className="mt-6">
+                            {!inStock ? (
+                                <button type="button" disabled className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-muted px-5 text-sm font-bold text-muted-foreground sm:w-auto">
+                                    Barang sedang tidak tersedia
+                                </button>
+                            ) : !user ? (
+                                <button type="button" onClick={continueAsGuest} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-bold text-white transition-colors hover:bg-orange-600 sm:w-auto">
+                                    <LogIn className="size-5" />
+                                    Masuk untuk menyewa
+                                </button>
+                            ) : isMember ? (
+                                <button type="submit" disabled={processing || !data.rent_start_date} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
+                                    <PackageCheck className="size-5" />
+                                    {processing ? 'Memproses…' : 'Sewa sekarang'}
+                                </button>
+                            ) : isStaff ? (
+                                <Link href={route('dashboard')} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-5 text-sm font-bold text-background transition-opacity hover:opacity-90 sm:w-auto">
+                                    Buka dashboard
+                                </Link>
+                            ) : (
+                                <Link href={route('profile.edit')} className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-orange-500 px-5 text-sm font-bold text-white transition-colors hover:bg-orange-600 sm:w-auto">
+                                    Lengkapi akses akun
+                                </Link>
+                            )}
                         </div>
-                        <div>
-                            <h3 className="text-sm font-medium text-foreground">Kategori</h3>
-                            <p className="mt-4 text-sm text-muted-foreground">{props.product.category.name}</p>
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-medium text-foreground">Harga</h3>
-                            <p className="mt-4 text-sm text-muted-foreground">
-                                Rp {totalPrice.toLocaleString('id-ID')}
-                                <span className="block text-xs text-muted-foreground">
-                                    ({duration} hari x Rp {props.product.price.toLocaleString('id-ID')} )
-                                </span>
-                            </p>
-                        </div>
+                    </form>
+
+                    <div className="mt-6 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+                        <p className="flex gap-2"><CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" /> Stok dikonfirmasi saat pesanan dibuat.</p>
+                        <p className="flex gap-2"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-500" /> Data sewa hanya diproses setelah masuk.</p>
                     </div>
                 </div>
             </div>
@@ -154,4 +212,4 @@ export default function Show(props) {
     );
 }
 
-Show.layout = (page) => <AppLayout children={page} title={page.props.page_settings.title} />;
+Show.layout = (page) => <StorefrontLayout title={page.props.page_settings?.title}>{page}</StorefrontLayout>;

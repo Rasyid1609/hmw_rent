@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\Loan;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,9 +59,17 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        Auth::logout();
+        DB::transaction(function () use ($user): void {
+            $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
+            if (Loan::where('user_id', $lockedUser->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'password' => 'Akun dengan riwayat penyewaan tidak dapat dihapus. Hubungi petugas untuk bantuan.',
+                ]);
+            }
+            $lockedUser->delete();
+        }, 3);
 
-        $user->delete();
+        Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

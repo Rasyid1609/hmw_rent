@@ -22,16 +22,7 @@ use App\Http\Controllers\Admin\ProductStockReportController;
 
 Route::middleware(['auth', 'role:admin|operator'])->prefix('admin')->name('admin.')->group(function () {
 
-    Route::controller(LoanStatisticController::class)->group(function() {
-        Route::get('loan-statistics', 'index')->name('loan-statistics.index');
-    });
-
-    Route::controller(FineReportController::class)->group(function() {
-        Route::get('fine-reports', 'index')->name('fine-reports.index');
-    });
-
     Route::controller(ProductStockReportController::class)->group(function(){
-        Route::get('product-stock-reports', 'index')->name('product-stock-reports.index');
         Route::get('product-stock-reports/edit/{stock}', 'edit')->name('product-stock-reports.edit');
         Route::put('product-stock-reports/edit/{stock}', 'update')->name('product-stock-reports.update');
     });
@@ -63,15 +54,6 @@ Route::middleware(['auth', 'role:admin|operator'])->prefix('admin')->name('admin
         Route::delete('products/destroy/{product}', 'destroy')->name('products.destroy');
     });
 
-    Route::controller(UserController::class)->group(function(){
-        Route::get('users', 'index')->name('users.index');
-        Route::get('users/create', 'create')->name('users.create');
-        Route::post('users/create', 'store')->name('users.store');
-        Route::get('users/edit/{user}', 'edit')->name('users.edit');
-        Route::put('users/edit/{user}', 'update')->name('users.update');
-        Route::delete('users/destroy/{user}', 'destroy')->name('users.destroy');
-    });
-
     Route::controller(FineSettingController::class)->group(function(){
         Route::get('fine-settings/create', 'create')->name('fine-settings.create');
         Route::put('fine-settings/create', 'store')->name('fine-settings.store');
@@ -90,51 +72,67 @@ Route::middleware(['auth', 'role:admin|operator'])->prefix('admin')->name('admin
         Route::get('return-products', 'index')->name('return-products.index');
         Route::get('return-products/{loan:loan_code}/create', 'create')->name('return-products.create');
         Route::put('return-products/{loan:loan_code}/create', 'store')->name('return-products.store');
-        Route::put('return-products/{returnproduct:return_product_code}/approve', 'approve')->name('return-products.approve');
+        Route::put('return-products/{returnProduct:return_product_code}/approve', 'approve')->name('return-products.approve');
     });
 
-    Route::controller(FineController::class)->group(function(){
-        Route::get('fines/{returnProduct:return_product_code}/create', 'create')->name('fines.create');
+    // Role, permission, and route-access controls grant privileges. They must
+    // remain unavailable to operators even though operators can manage rentals.
+    Route::middleware('role:admin')->group(function () {
+        Route::controller(UserController::class)->group(function(){
+            Route::get('users', 'index')->name('users.index');
+            Route::get('users/create', 'create')->name('users.create');
+            Route::post('users/create', 'store')->name('users.store');
+            Route::get('users/edit/{user}', 'edit')->name('users.edit');
+            Route::put('users/edit/{user}', 'update')->name('users.update');
+            Route::delete('users/destroy/{user}', 'destroy')->name('users.destroy');
+        });
+
+        Route::controller(RoleController::class)->group(function(){
+            Route::get('roles', 'index')->name('roles.index');
+            Route::get('roles/create', 'create')->name('roles.create');
+            Route::post('roles/create', 'store')->name('roles.store');
+            Route::get('roles/edit/{role}', 'edit')->name('roles.edit');
+            Route::put('roles/edit/{role}', 'update')->name('roles.update');
+            Route::delete('roles/destroy/{role}', 'destroy')->name('roles.destroy');
+        });
+
+        Route::controller(PermissionController::class)->group(function(){
+            Route::get('permissions', 'index')->name('permissions.index');
+            Route::get('permissions/create', 'create')->name('permissions.create');
+            Route::post('permissions/create', 'store')->name('permissions.store');
+            Route::get('permissions/edit/{permission}', 'edit')->name('permissions.edit');
+            Route::put('permissions/edit/{permission}', 'update')->name('permissions.update');
+            Route::delete('permissions/destroy/{permission}', 'destroy')->name('permissions.destroy');
+        });
+
+        Route::controller(AssignPermissionController::class)->group(function(){
+            Route::get('assign-permissions', 'index')->name('assign-permissions.index');
+            Route::get('assign-permissions/edit/{role}', 'edit')->name('assign-permissions.edit');
+            Route::put('assign-permissions/edit/{role}', 'update')->name('assign-permissions.update');
+        });
+
+        Route::controller(AssignUserController::class)->group(function(){
+            Route::get('assign-users', 'index')->name('assign-users.index');
+            Route::get('assign-users/edit/{user}', 'edit')->name('assign-users.edit');
+            Route::put('assign-users/edit/{user}', 'update')->name('assign-users.update');
+        });
+
+        Route::controller(RouteAccessController::class)->group(function(){
+            Route::get('route-accesses', 'index')->name('route-accesses.index');
+            Route::get('route-accesses/create', 'create')->name('route-accesses.create');
+            Route::post('route-accesses/create', 'store')->name('route-accesses.store');
+            Route::get('route-accesses/edit/{routeAccess}', 'edit')->name('route-accesses.edit');
+            Route::put('route-accesses/edit/{routeAccess}', 'update')->name('route-accesses.update');
+            Route::delete('route-accesses/destroy/{routeAccess}', 'destroy')->name('route-accesses.destroy');
+        });
     });
 
-    Route::controller(RoleController::class)->group(function(){
-        Route::get('roles', 'index')->name('roles.index');
-        Route::get('roles/create', 'create')->name('roles.create');
-        Route::post('roles/create', 'store')->name('roles.store');
-        Route::get('roles/edit/{role}', 'edit')->name('roles.edit');
-        Route::put('roles/edit/{role}', 'update')->name('roles.update');
-        Route::delete('roles/destroy/{role}', 'destroy')->name('roles.destroy');
-    });
 
-    Route::controller(PermissionController::class)->group(function(){
-        Route::get('permissions', 'index')->name('permissions.index');
-        Route::get('permissions/create', 'create')->name('permissions.create');
-        Route::post('permissions/create', 'store')->name('permissions.store');
-        Route::get('permissions/edit/{permission}', 'edit')->name('permissions.edit');
-        Route::put('permissions/edit/{permission}', 'update')->name('permissions.update');
-        Route::delete('permissions/destroy/{permission}', 'destroy')->name('permissions.destroy');
-    });
+});
 
-    Route::controller(AssignPermissionController::class)->group(function(){
-        Route::get('assign-permissions', 'index')->name('assign-permissions.index');
-        Route::get('assign-permissions/edit/{role}', 'edit')->name('assign-permissions.edit');
-        Route::put('assign-permissions/edit/{role}', 'update')->name('assign-permissions.update');
-    });
-
-    Route::controller(AssignUserController::class)->group(function(){
-        Route::get('assign-users', 'index')->name('assign-users.index');
-        Route::get('assign-users/edit/{user}', 'edit')->name('assign-users.edit');
-        Route::put('assign-users/edit/{user}', 'update')->name('assign-users.update');
-    });
-
-    Route::controller(RouteAccessController::class)->group(function(){
-        Route::get('route-accesses', 'index')->name('route-accesses.index');
-        Route::get('route-accesses/create', 'create')->name('route-accesses.create');
-        Route::post('route-accesses/create', 'store')->name('route-accesses.store');
-        Route::get('route-accesses/edit/{routeAccess}', 'edit')->name('route-accesses.edit');
-        Route::put('route-accesses/edit/{routeAccess}', 'update')->name('route-accesses.update');
-        Route::delete('route-accesses/destroy/{routeAccess}', 'destroy')->name('route-accesses.destroy');
-    });
-
-
+Route::middleware(['auth', 'role:admin|operator|accounting'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('loan-statistics', [LoanStatisticController::class, 'index'])->name('loan-statistics.index');
+    Route::get('fine-reports', [FineReportController::class, 'index'])->name('fine-reports.index');
+    Route::get('product-stock-reports', [ProductStockReportController::class, 'index'])->name('product-stock-reports.index');
+    Route::get('fines/{returnProduct:return_product_code}/create', [FineController::class, 'create'])->name('fines.create');
 });

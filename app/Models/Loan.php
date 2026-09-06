@@ -55,24 +55,58 @@ class Loan extends Model
         return $this->hasOne(ReturnProduct::class);
     }
 
+    public function canUploadPaymentProof(): bool
+    {
+        return ($this->payment_status === 'failed'
+            || (in_array($this->payment_status, ['unpaid', 'pending'], true) && blank($this->proof_image)))
+            && ! $this->returnProduct()->exists();
+    }
+
+    public function canReviewPayment(): bool
+    {
+        return $this->payment_status === 'pending'
+            && filled($this->proof_image)
+            && ! $this->returnProduct()->exists();
+    }
+
+    public function paymentStatusLabel(): string
+    {
+        return match ($this->payment_status) {
+            'paid' => 'Lunas',
+            'failed' => 'Bukti pembayaran ditolak',
+            'pending' => filled($this->proof_image) ? 'Menunggu verifikasi' : 'Belum dibayar',
+            'unpaid' => 'Belum dibayar',
+            default => 'Status tidak dikenal',
+        };
+    }
+
     public function scopeFilter(Builder $query, array $filters): void
     {
         $query->when($filters['search'] ?? null, function($query, $search){
             $query->where(function($query) use ($search){
                 $query->whereAny([
                     'loan_code',
-                    'loan_date',
-                    'due_date',
-                ], 'REGEXP', $search);
+                    'rent_start_date',
+                    'rent_end_date',
+                ], 'like', '%'.$search.'%');
             });
         });
     }
 
     public function scopeSorting(Builder $query, array $sorts): void
     {
-        $query->when($sorts['field'] ?? null && $sorts['direction'] ?? null, function($query) use ($sorts){
-            $query->orderBy($sorts['field'], $sorts['direction']);
-        });
+        $field = $sorts['field'] ?? null;
+        $direction = $sorts['direction'] ?? null;
+        $field = match ($field) {
+            'loan_date' => 'rent_start_date',
+            'due_date' => 'rent_end_date',
+            default => $field,
+        };
+
+        if (in_array($field, ['id', 'loan_code', 'user_id', 'product_id', 'rent_start_date', 'rent_end_date', 'rent_duration', 'rent_price', 'payment_status', 'created_at'], true)
+            && in_array($direction, ['asc', 'desc'], true)) {
+            $query->orderBy($field, $direction);
+        }
     }
 
     public static function checkLoanProduct(int $user_id, int $product_id): bool

@@ -12,7 +12,10 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 export default function Show(props) {
-    const { SUCCESS } = FINEPAYMENTSTATUS;
+    const { PENDING, FAILED, SUCCESS, WAITING_VERIFICATION } = FINEPAYMENTSTATUS;
+    const paymentStatus = props.return_product.fine?.payment_status;
+    const canUploadProof = [PENDING, FAILED].includes(paymentStatus);
+    const isWaitingForVerification = paymentStatus === WAITING_VERIFICATION;
 
     const [showForm, setShowForm] = useState(false);
     const [proof, setProof] = useState(null);
@@ -88,12 +91,21 @@ export default function Show(props) {
                 <h2 className="font-semibold leading-relaxed text-foreground">Informasi Denda</h2>
             )}
 
-            {props.return_product.fine && props.return_product.fine.payment_status !== SUCCESS && (
+            {props.return_product.fine && !isWaitingForVerification && props.return_product.fine.payment_status !== SUCCESS && (
                 <Alert variant="destructive">
                     <AlertTitle>Informasi</AlertTitle>
                     <AlertDescription>
                         Setelah melalui pengecekan, peminjaman barang anda terkena denda. Harap untuk melunasi pembayaran
                         denda terlebih dahulu
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {props.return_product.fine && isWaitingForVerification && (
+                <Alert>
+                    <AlertTitle>Bukti sedang diverifikasi</AlertTitle>
+                    <AlertDescription>
+                        Bukti pembayaran Anda sudah diterima dan sedang diperiksa oleh petugas.
                     </AlertDescription>
                 </Alert>
             )}
@@ -141,7 +153,7 @@ export default function Show(props) {
                                         <TableHead>Denda Lain-lain</TableHead>
                                         <TableHead>Total Denda</TableHead>
                                         <TableHead>Status Pembayaran</TableHead>
-                                        {props.return_product.fine.payment_status !== 'sukses' && (
+                                        {canUploadProof && (
                                             <TableHead>Aksi</TableHead>
                                         )}
                                     </TableRow>
@@ -164,7 +176,7 @@ export default function Show(props) {
                                         <TableCell>
                                             <GetFineStatusBadge status={props.return_product.fine.payment_status} />
                                         </TableCell>
-                                        {props.return_product.fine.payment_status !== SUCCESS && (
+                                        {canUploadProof && (
                                             <TableCell>
                                                 <Button variant="outline" onClick={()=> setShowForm(true)}>
                                                     Upload Bukti
@@ -174,6 +186,9 @@ export default function Show(props) {
                                     </TableRow>
                                 </TableBody>
                             </Table>
+                            {props.return_product.fine.proof_url && (
+                                <a href={props.return_product.fine.proof_url} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-medium text-orange-600 underline">Lihat bukti pembayaran denda</a>
+                            )}
                             {showForm && (
                             <Card className="mt-6">
                                 <CardHeader>

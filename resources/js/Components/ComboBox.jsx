@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/Components/ui/button';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/Components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/Components/ui/popover';
 import { cn } from '@/lib/utils';
 import { CaretSortIcon, CheckIcon } from '@radix-ui/react-icons';
 import { useState } from 'react';
@@ -17,7 +17,7 @@ export default function ComboBox({ items, selectedItem, onSelect, placeholder = 
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-                    {items.find((item) => item.label == selectedItem)?.label ?? 'Pilih item'}
+                    {items.find((item) => String(item.value) === String(selectedItem))?.label ?? 'Pilih item'}
                     <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
@@ -31,12 +31,12 @@ export default function ComboBox({ items, selectedItem, onSelect, placeholder = 
                         <CommandEmpty>Item tidak ditemukan</CommandEmpty>
                         <CommandGroup>
                             {items.map((item, index) => (
-                                <CommandItem key={index} value={item.value} onSelect={(value) => handleSelect(value)}>
+                                <CommandItem key={index} value={String(item.value)} keywords={[item.label]} onSelect={() => handleSelect(item.value)}>
                                     {item.label}
                                     <CheckIcon
                                         className={cn(
                                             'ml-auto h-4 w-4',
-                                            selectedItem === item.label ? 'opacity-100' : 'opacity-0',
+                                            String(selectedItem) === String(item.value) ? 'opacity-100' : 'opacity-0',
                                         )}
                                     />
                                 </CommandItem>

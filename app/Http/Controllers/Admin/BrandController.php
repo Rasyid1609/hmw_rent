@@ -6,6 +6,9 @@ use Throwable;
 use App\Hasfile;
 use Inertia\Response;
 use App\Models\Brands;
+use App\Models\Product;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Enums\MessageType;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -75,26 +78,27 @@ class BrandController extends Controller
         }
     }
 
-    public function edit(Brands $brands): Response
+    public function edit(Brands $brand): Response
     {
         return inertia('Admin/Brands/Edit', [
             'page_settings' => [
                 'title' => 'Edit Brand',
                 'subtitle' => 'Edit brand disini. Klik simpan setelah selesai',
                 'method' => 'PUT',
-                'action' => route('admin.brands.update', $brands)
+                'action' => route('admin.brands.update', $brand)
             ],
-            'brands' => $brands,
+            'brands' => $brand,
+            'logo_url' => $brand->logo ? Storage::disk('public')->url($brand->logo) : null,
         ]);
     }
 
-    public function update(Brands $brands, BrandRequest $request): RedirectResponse
+    public function update(Brands $brand, BrandRequest $request): RedirectResponse
     {
         try {
-            $brands->update([
+            $brand->update([
                 'name' => $name = $request->name,
-                'slug' => $name !== $brands->name ? str()->lower(str()->slug($name) . str()->random(4)) : $brands->slug,
-                'logo' => $this->update_file($request, $brands, 'logo', 'brands')
+                'slug' => $name !== $brand->name ? str()->lower(str()->slug($name) . str()->random(4)) : $brand->slug,
+                'logo' => $this->update_file($request, $brand, 'logo', 'brands')
             ]);
 
             flashMessage(MessageType::UPDATED->message('Brand'));
@@ -108,9 +112,14 @@ class BrandController extends Controller
     public function destroy(Brands $brand): RedirectResponse
     {
         try {
-            $this->delete_file($brand, 'cover');
-
-            $brand->delete();
+            DB::transaction(function () use ($brand): void {
+                $lockedBrand = Brands::query()->lockForUpdate()->findOrFail($brand->id);
+                if (Product::where('brand_id', $brand->id)->exists()) {
+                    throw new \RuntimeException('Brand yang masih digunakan oleh barang tidak dapat dihapus.');
+                }
+                $lockedBrand->delete();
+            }, 3);
+            $this->delete_file($brand, 'logo');
             flashMessage(MessageType::DELETED->message('Kategori'));
             return to_route('admin.brands.index');
         } catch (Throwable $err) {

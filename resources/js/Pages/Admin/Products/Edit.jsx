@@ -1,4 +1,5 @@
 import HeaderTitle from '@/Components/HeaderTitle';
+import ImageUpload from '@/Components/ImageUpload';
 import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -20,7 +21,9 @@ export default function Edit(props) {
         title: props.product.title ?? '',
         description: props.product.description ?? '',
         cover: null,
+        release_year: props.product.release_year ?? '',
         price: props.product.price ?? 0,
+        total: props.product.stock?.total ?? 0,
         category_id: props.product.category_id ?? null,
         brand_id: props.product.brand_id ?? null,
         _method: props.page_settings.method,
@@ -42,7 +45,7 @@ export default function Edit(props) {
 
     const onHandleReset = () => {
         reset();
-        fileInputCover.current.value = null;
+        fileInputCover.current.reset();
     };
 
     return (
@@ -103,11 +106,12 @@ export default function Edit(props) {
 
                                     <div className="grid w-full items-center gap-1.5">
                                         <Label htmlFor="cover">Cover</Label>
-                                        <Input
-                                            name="cover"
+                                        <ImageUpload
                                             id="cover"
-                                            type="file"
-                                            onChange={(e) => setData(e.target.name, e.target.files[0])}
+                                            value={data.cover}
+                                            onChange={(file) => setData('cover', file)}
+                                            disabled={processing}
+                                            existingUrl={props.cover_url}
                                             ref={fileInputCover}
                                         />
                                         {errors.cover && <InputError message={errors.cover} />}
@@ -192,7 +196,7 @@ export default function Edit(props) {
                                         <Button type="button" variant="ghost" size="lg" onClick={onHandleReset}>
                                             Reset
                                         </Button>
-                                        <Button type="submit" variant="orange" size="lg">
+                                        <Button type="submit" variant="orange" size="lg" disabled={processing}>
                                             Save
                                         </Button>
                                     </div>

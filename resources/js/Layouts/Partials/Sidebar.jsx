@@ -82,12 +82,12 @@ export default function Sidebar({url, auth}) {
                     title="Barang"
                     icon={IconDeviceMobile}
                 />
-                <NavLink
+                {auth.role.includes('admin') && <NavLink
                         url={route('admin.users.index')}
                         active={url.startsWith('/admin/users')}
                         title="Pengguna"
                         icon={IconUsersGroup}
-                    />
+                    />}
                 <NavLink
                     url={route('admin.fine-settings.create')}
                     active={url.startsWith('/admin/fine-settings')}
@@ -123,7 +123,7 @@ export default function Sidebar({url, auth}) {
                 </>
             )}
 
-        {auth.role.some((role) => ['admin', 'operator', 'accounting'].includes(role)) && (
+        {auth.role.some((role) => ['admin', 'operator'].includes(role)) && (
                 <>
                     {/* Transaksi */}
                     <div className="px-3 py-2 text-sm font-semibold text-foreground">Transaksi</div>

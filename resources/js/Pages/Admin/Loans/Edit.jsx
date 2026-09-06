@@ -1,4 +1,3 @@
-import ComboBox from '@/Components/ComboBox';
 import HeaderTitle from '@/Components/HeaderTitle';
 import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
@@ -13,7 +12,8 @@ import { toast } from 'sonner';
 
 export default function Edit(props) {
     const { data, setData, reset, post, processing, errors } = useForm({
-        payment_status: props.page_data.loan.payment_status,
+        payment_status: '',
+        reviewed_proof: props.page_data.loan.proof_image ?? '',
         _method: props.page_settings.method,
     });
 
@@ -76,7 +76,7 @@ export default function Edit(props) {
 
                             {props.page_data.loan.proof_image ? (
                                 <img
-                                src={`/storage/${props.page_data.loan.proof_image}`}
+                                src={props.page_data.proof_url}
                                 className="mt-2 w-64 rounded border"
                                 alt="Bukti Pembayaran"
                                 />
@@ -89,32 +89,39 @@ export default function Edit(props) {
 
                         <div>
                             <Label>Status Pembayaran</Label>
+                            <p className="mt-1 font-medium">{props.page_data.payment_status_label}</p>
+                        </div>
 
+                        {props.page_data.can_review ? <div>
+                            <Label htmlFor="payment_status">Keputusan Verifikasi</Label>
                             <select
+                                id="payment_status"
                                 className="w-full rounded border p-2"
+                                required
                                 value={data.payment_status}
                                 onChange={(e) =>
                                 setData('payment_status', e.target.value)
                                 }
                             >
-                                <option value="pending">Pending</option>
-                                <option value="paid">Paid</option>
-                                <option value="failed">Failed</option>
+                                <option value="">Pilih keputusan</option>
+                                <option value="paid">Terima pembayaran</option>
+                                <option value="failed">Tolak bukti pembayaran</option>
                             </select>
+                        </div> : <p className="text-sm text-muted-foreground">
+                            {props.page_data.loan.payment_status === 'paid'
+                                ? 'Pembayaran sudah lunas dan statusnya terkunci.'
+                                : 'Belum ada bukti baru yang dapat diverifikasi untuk transaksi ini.'}
+                        </p>}
+                        <InputError message={errors.payment_status || errors.reviewed_proof} />
 
-                            {errors.payment_status && (
-                                <InputError message={errors.payment_status} />
-                            )}
-                        </div>
-
-                        <div className="flex justify-end gap-2">
+                        {props.page_data.can_review && <div className="flex justify-end gap-2">
                             <Button type="button" variant="ghost" size="lg" onClick={onHandleReset}>
                                 Reset
                             </Button>
-                            <Button type="submit" variant="orange" size="lg" disabled={processing}>
-                                {processing ? 'Saving...' : 'Save'}
+                            <Button type="submit" variant="orange" size="lg" disabled={processing || !data.payment_status}>
+                                {processing ? 'Menyimpan...' : 'Simpan keputusan'}
                             </Button>
-                        </div>
+                        </div>}
                     </form>
                 </CardContent>
             </Card>

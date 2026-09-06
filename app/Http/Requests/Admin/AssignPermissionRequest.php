@@ -11,7 +11,7 @@ class AssignPermissionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -24,7 +24,11 @@ class AssignPermissionRequest extends FormRequest
         return [
             'permissions' => [
                 'nullable',
-                'exists:permissions,name'
+                'array',
+            ],
+            'permissions.*' => [
+                'string',
+                'exists:permissions,name',
             ],
         ];
     }

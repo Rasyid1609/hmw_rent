@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use Throwable;
+use App\Enums\MessageType;
 use Inertia\Response;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
@@ -28,7 +29,7 @@ class AssignPermissionController extends Controller
             ->withQueryString();
 
         return inertia('Admin/AssignPermissions/Index', [
-            'page_setings'=> [
+            'page_settings'=> [
                 'title' => 'Tetapkan Izin',
                 'subtitle' => 'Menampilkan semua data tetapkan izin yang tersimpan pada platform ini. '
             ],

@@ -7,6 +7,21 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Penyimpanan bukti transfer
+
+Bukti sewa dan denda disimpan pada disk `local` (`storage/app/private/payment-proofs`). Akses gambar melalui rute `payment-proofs/loans/{loan}` atau `payment-proofs/fines/{fine}` memerlukan login dan pemeriksaan pemilik atau peran petugas. Folder privat tidak boleh dijadikan symlink di dalam `public`.
+
+Saat memperbarui instalasi yang masih menyimpan bukti di `storage/app/public/payment-proofs`, jalankan:
+
+```sh
+php artisan config:clear
+php artisan route:clear
+php artisan payment-proofs:protect
+npm run build
+```
+
+Perintah pemindahan memeriksa kesamaan isi sebelum menghapus salinan publik, termasuk file lama yang tidak lagi dirujuk transaksi. Perintah aman dijalankan ulang; jika ada konflik isi, file asal dipertahankan dan perintah melaporkan kegagalan. Foto katalog tetap menggunakan disk `public`.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

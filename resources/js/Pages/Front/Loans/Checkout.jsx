@@ -5,17 +5,17 @@ import { Label } from '@/Components/ui/label';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatToRupiah } from '@/lib/utils';
 import { useForm } from '@inertiajs/react';
-import { useRef } from 'react';
 
-export default function Checkout({ page_settings, loan, props }) {
+export default function Checkout({ page_settings, loan, can_upload_payment_proof, payment_status_label, proof_url }) {
     const product = loan.product;
-    const fileInput = useRef(null);
 
     const { data, setData, post, processing, errors } = useForm({
         proof_image: null,
     });
 
     const submit = (e) => {
+        e.preventDefault();
+
         post(route('front.loans.payment', loan.loan_code), {
             forceFormData: true,
             preserveScroll: true,
@@ -75,7 +75,19 @@ export default function Checkout({ page_settings, loan, props }) {
                         <CardTitle>Pembayaran</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <form>
+                        <p role="status" className="font-medium">{payment_status_label}</p>
+                        {proof_url && <a href={proof_url} target="_blank" rel="noreferrer" className="inline-block text-sm font-medium text-orange-600 underline">Lihat bukti pembayaran</a>}
+                        {loan.payment_status === 'failed' && can_upload_payment_proof && (
+                            <p className="text-sm text-muted-foreground">Bukti sebelumnya ditolak. Periksa pembayaran dan unggah bukti yang benar.</p>
+                        )}
+                        {!can_upload_payment_proof && (
+                            <p className="text-sm text-muted-foreground">
+                                {loan.payment_status === 'paid'
+                                    ? 'Pembayaran sudah diterima. Tidak perlu mengirim bukti lagi.'
+                                    : 'Unggah bukti dinonaktifkan selama pemeriksaan atau setelah proses pengembalian dimulai.'}
+                            </p>
+                        )}
+                        {can_upload_payment_proof && <form onSubmit={submit}>
                             <div>
                                 <Label>Rekening Pembayaran</Label>
                                 <p className='space-y-4'>BCA - 1200939222</p>
@@ -84,11 +96,12 @@ export default function Checkout({ page_settings, loan, props }) {
                                 <Label>Bukti Pembayaran</Label>
                                 <Input
                                     type="file"
-                                    accept="image/*"
+                                    accept="image/jpeg,image/png"
                                     onChange={(e) =>
                                         setData('proof_image', e.target.files[0])
                                     }
                                 />
+                                <p className="mt-1 text-xs text-muted-foreground">JPG atau PNG, maksimal 2 MB.</p>
                                 {errors.proof_image && (
                                     <p className="text-sm text-red-500">
                                         {errors.proof_image}
@@ -100,18 +113,16 @@ export default function Checkout({ page_settings, loan, props }) {
                                 <Button
                                     type="submit"
                                     disabled={processing || !data.proof_image}
-                                    onClick={submit}
                                 >
                                     {processing
                                         ? 'Mengirim...'
                                         : 'Kirim Bukti Pembayaran'}
                                 </Button>
                             </div>
-                        </form>
+                        </form>}
                     </CardContent>
                 </Card>
             </div>
         </AppLayout>
     );
 }
-

@@ -20,8 +20,17 @@ class ProductFrontResource extends JsonResource
             'title' => $this->title,
             'slug' => $this->slug,
             'status' => $this->status,
-            'cover' => $this->cover ? Storage::url($this->cover) : null,
+            'cover' => $this->cover ? Storage::disk('public')->url($this->cover) : null,
             'description' => $this->description,
+            'price' => (int) $this->price,
+            'category' => $this->whenLoaded('category', fn () => [
+                'id' => $this->category->id,
+                'name' => $this->category->name,
+                'slug' => $this->category->slug,
+            ]),
+            'stock' => $this->whenLoaded('stock', fn () => [
+                'available' => (int) ($this->stock?->available ?? 0),
+            ]),
         ];
     }
 }

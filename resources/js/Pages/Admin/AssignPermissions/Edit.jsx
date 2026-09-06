@@ -7,7 +7,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import MultiSelect from '@/Components/MultiSelect';
+import { MultiSelect } from '@/Components/MultiSelect';
 import { useForm } from '@inertiajs/react';
 import HeaderTitle from '@/Components/HeaderTitle';
 import { flashMessage } from '@/lib/utils';
@@ -16,13 +16,13 @@ import React from 'react'
 
 export default function Edit(props) {
   const [selectedPermissions, setSelectedPermissions] = useState(
-    Array.from(new Set(props.role.permission.map((permission) => permission.id))),
+    Array.from(new Set((props.role.permissions ?? []).map((permission) => permission.name))),
   );
 
   const {data, setData, reset, post, processing, errors } = useForm({
     name: props.role.name ?? '',
     permissions: selectedPermissions,
-    _,method: props.page_settings.method,
+    _method: props.page_settings.method,
   });
 
   const onHandleChange = (e) => setData(e.target.name, e.target.value);
@@ -83,7 +83,7 @@ export default function Edit(props) {
                         <MultiSelect
                             options={props.permissions}
                             onValueChange={handlePermissionChange}
-                            default={selectedPermissions}
+                            defaultValue={selectedPermissions}
                             placeholder="Pilih izin"
                             variant="inverted"
                         />
@@ -93,7 +93,7 @@ export default function Edit(props) {
                         <Button type="button" variant="ghost" size="lg" onClick={onHandleReset}>
                             Reset
                         </Button>
-                        <Button type="submit" variant="orange" size="lg">
+                        <Button type="submit" variant="orange" size="lg" disabled={processing}>
                             Save
                         </Button>
                     </div>
@@ -105,8 +105,5 @@ export default function Edit(props) {
  );
 }
 
-Edit.layout = (page) => <AppLayout children={page} title={page.props.page_settings.title} />;import { useState } from 'react';
-import { toast } from 'sonner';
-import { MultiSelect } from '@/Components/MultiSelect';
-
+Edit.layout = (page) => <AppLayout children={page} title={page.props.page_settings.title} />;
 

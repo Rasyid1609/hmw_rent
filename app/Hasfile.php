@@ -10,16 +10,16 @@ trait Hasfile
 {
    public function upload_file(Request $request, string $colomn, string $folder): ?string
     {
-        return $request->hasfile($colomn) ? $request->file($colomn)->store($folder) : null;
+        return $request->hasfile($colomn) ? $request->file($colomn)->store($folder, 'public') : null;
     }
 
     public function update_file(Request $request, Model $model, string $colomn, string $folder): ?string
     {
         if ($request->hasFile($colomn)) {
             if ($model->$colomn) {
-                Storage::delete($model->$colomn);
+                Storage::disk('public')->delete($model->$colomn);
             }
-            $thumbnail = $request->file($colomn)->store($folder);
+            $thumbnail = $request->file($colomn)->store($folder, 'public');
         } else {
             $thumbnail = $model->$colomn;
         }
@@ -29,8 +29,8 @@ trait Hasfile
 
     public function delete_file(Model $model, string $colomn): void
     {
-        if ($model->colomn) {
-            Storage::delete($model->$colomn);
+        if ($model->$colomn) {
+            Storage::disk('public')->delete($model->$colomn);
         }
     }
 }

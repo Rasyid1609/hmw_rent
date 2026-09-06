@@ -24,27 +24,27 @@ class StockRequest extends FormRequest
         return [
             'total' => [
                 'required',
-                'numeric',
+                'integer',
                 'min:0'
             ],
             'available' => [
-                'required',
-                'numeric',
+                'sometimes',
+                'integer',
                 'min:0'
             ],
             'loan' => [
-                'required',
-                'numeric',
+                'sometimes',
+                'integer',
                 'min:0'
             ],
             'lost' => [
-                'required',
-                'numeric',
+                'sometimes',
+                'integer',
                 'min:0'
             ],
             'damaged' => [
-                'required',
-                'numeric',
+                'sometimes',
+                'integer',
                 'min:0'
             ],
         ];

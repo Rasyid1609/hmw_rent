@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use Throwable;
+use RuntimeException;
 use App\Models\Fine;
 use App\Models\Loan;
 use Inertia\Response;
 use App\Enums\MessageType;
 use App\Models\FineSetting;
-use Illuminate\Http\Request;
 use App\Models\ReturnProduct;
 use Illuminate\Support\Carbon;
 use App\Enums\ReturnProductStatus;
@@ -68,7 +68,7 @@ class ReturnProductController extends Controller
             'page_settings' => [
                 'title' => 'Pengembalian Barang',
                 'subtitle' => 'Kembalikan Barang yang dipinjam disini. Klik kembalikan setelah selesai',
-                'method' => 'POST',
+                'method' => 'PUT',
                 'action' => route('admin.return-products.store', $loan),
             ],
             'loan' => $loan->load([
@@ -86,53 +86,64 @@ class ReturnProductController extends Controller
     public function store(Loan $loan, ReturnProductRequest $request): RedirectResponse
     {
         try {
-            DB::beginTransaction();
-            $return_product = $loan->returnProduct()->create([
-                'return_product_code' => str()->lower(str()->random(10)),
-                'product_id' => $loan->product_id,
-                'user_id' => $loan->user_id,
-                'return_date' => Carbon::today(),
-            ]);
+            $validated = $request->validated();
 
-            $return_product_check = $return_product->returnProductCheck()->create([
-                'condition' => $request->condition,
-                'notes' => $request->notes,
-            ]);
+            $result = DB::transaction(function () use ($loan, $validated, $request): array {
+                $lockedLoan = Loan::query()->lockForUpdate()->findOrFail($loan->getKey());
 
-            match($return_product_check->condition->value){
-                ReturnProductCondition::GOOD->value => $return_product->product->stock_loan_return(),
-                ReturnProductCondition::LOST->value => $return_product->product->stock_lost(),
-                ReturnProductCondition::DAMAGED->value => $return_product->product->stock_damaged(),
-                default => flashMessage('Kondisi barang tidak sesuai', 'error'),
-            };
-
-            $isOnTime = $return_product->isOnTime();
-            $daysLate = $return_product->getDaysLate();
-            $fineData = $this->calculateFine($return_product, $return_product_check, FineSetting::first(), $daysLate);
-
-            DB::commit();
-
-            if($isOnTime){
-                if($fineData){
-                    flashMessage($fineData['message'], 'error');
-                    return to_route('admin.fines.create', $return_product->return_product_code);
+                if ($lockedLoan->returnProduct()->exists()) {
+                    return ['return_product' => null, 'fine' => null, 'message' => 'Barang ini sudah dikembalikan'];
                 }
 
-                flashMessage('Berhasil mengembalikan barang');
-                return to_route('admin.return-products.index');
-            } else{
-                if($fineData){
-                    flashMessage($fineData['message'], 'error');
-                    return to_route('admin.fines.create', $return_product->return_product_code);
+                $fineSetting = FineSetting::query()->first();
+
+                if (! $fineSetting) {
+                    throw new RuntimeException('Pengaturan denda belum dibuat.');
                 }
+
+                $returnProduct = $lockedLoan->returnProduct()->create([
+                    'return_product_code' => str()->lower(str()->random(10)),
+                    'product_id' => $lockedLoan->product_id,
+                    'user_id' => $lockedLoan->user_id,
+                    'return_date' => Carbon::today('Asia/Jakarta'),
+                ]);
+
+                $returnProductCheck = $returnProduct->returnProductCheck()->create([
+                    'condition' => $validated['condition'],
+                    'notes' => $request->input('notes'),
+                ]);
+
+                $this->moveStockForReturn($returnProduct, $returnProductCheck->condition);
+
+                return [
+                    'return_product' => $returnProduct,
+                    'fine' => $this->calculateFine(
+                        $returnProduct,
+                        $returnProductCheck,
+                        $fineSetting,
+                        $returnProduct->getDaysLate(),
+                    ),
+                    'message' => null,
+                ];
+            }, 3);
+
+            if (! $result['return_product']) {
+                flashMessage($result['message'], 'error');
+
+                return to_route('admin.loans.index');
             }
 
+            if ($result['fine']) {
+                flashMessage($result['fine']['message'], 'error');
+
+                return to_route('admin.fines.create', $result['return_product']);
+            }
 
             flashMessage('Berhasil mengembalikan barang');
+
             return to_route('admin.return-products.index');
         } catch (Throwable $err) {
-            DB::rollBack();
-            flashMessage(MessageType::ERROR->message(error: $err->getMessage()));
+            flashMessage(MessageType::ERROR->message(error: $err->getMessage()), 'error');
             return to_route('admin.loans.index');
         }
     }
@@ -195,50 +206,90 @@ class ReturnProductController extends Controller
     public function approve(ReturnProduct $returnProduct, ReturnProductRequest $request): RedirectResponse
     {
         try {
-            DB::beginTransaction();
+            $validated = $request->validated();
 
-            $return_product_check = $returnProduct->returnProductCheck()->updateOrCreate(
-                ['return_product_id' => $returnProduct->id],
-                [
-                    'condition' => $request->condition,
-                    'notes' => $request->notes,
-                ]
-            );
+            $result = DB::transaction(function () use ($returnProduct, $validated, $request): array {
+                $lockedReturnProduct = ReturnProduct::query()
+                    ->lockForUpdate()
+                    ->findOrFail($returnProduct->getKey());
 
-            match($return_product_check->condition->value){
-                ReturnProductCondition::GOOD->value => $returnProduct->product->stock_loan_return(),
-                ReturnProductCondition::LOST->value => $returnProduct->product->stock_lost(),
-                ReturnProductCondition::DAMAGED->value => $returnProduct->product->stock_damaged(),
-                default => flashMessage('Kondisi barang tidak sesuai', 'error'),
-            };
-
-            $isOnTime = $returnProduct->isOnTime();
-            $dayslate = $returnProduct->getDaysLate();
-
-            $fineData = $this->calculateFine($returnProduct, $return_product_check, FineSetting::first(), $dayslate);
-
-            DB::commit();
-
-            if ($isOnTime) {
-                if ($fineData) {
-                    flashMessage($fineData['message'], 'error');
-                    return to_route('admin.return-products.index');
+                // A completed return must be a no-op on retries. This guard is
+                // evaluated while holding the return row lock, before stock moves.
+                if ($lockedReturnProduct->status !== ReturnProductStatus::CHECKED) {
+                    return ['processed' => false, 'fine' => null];
                 }
 
-                flashMessage('Berhasil menyetujui pengembalian barang');
-                return to_route('admin.return-products.index');
-            } else {
-                if ($fineData) {
-                    flashMessage($fineData['message'], 'error');
-                    return to_route('admin.return-products.index');
+                $fineSetting = FineSetting::query()->first();
+
+                if (! $fineSetting) {
+                    throw new RuntimeException('Pengaturan denda belum dibuat.');
                 }
+
+                $returnProductCheck = $lockedReturnProduct->returnProductCheck()->firstOrCreate([], [
+                    'condition' => $validated['condition'],
+                    'notes' => $request->input('notes'),
+                ]);
+
+                $this->moveStockForReturn($lockedReturnProduct, $returnProductCheck->condition);
+
+                return [
+                    'processed' => true,
+                    'fine' => $this->calculateFine(
+                        $lockedReturnProduct,
+                        $returnProductCheck,
+                        $fineSetting,
+                        $lockedReturnProduct->getDaysLate(),
+                    ),
+                ];
+            }, 3);
+
+            if (! $result['processed']) {
+                flashMessage('Pengembalian ini sudah diproses', 'error');
+
                 return to_route('admin.return-products.index');
             }
 
+            if ($result['fine']) {
+                flashMessage($result['fine']['message'], 'error');
+
+                return to_route('admin.return-products.index');
+            }
+
+            flashMessage('Berhasil menyetujui pengembalian barang');
+
+            return to_route('admin.return-products.index');
+
         } catch(Throwable $err) {
-            DB::rollBack();
-            flashMessage(MessageType::ERROR->message(error: $err->getMessage()));
+            flashMessage(MessageType::ERROR->message(error: $err->getMessage()), 'error');
             return to_route('admin.loans.index');
+        }
+    }
+
+    private function moveStockForReturn(ReturnProduct $returnProduct, ReturnProductCondition $condition): void
+    {
+        $product = $returnProduct->product()->firstOrFail();
+        $stock = $product->stock()->lockForUpdate()->first();
+
+        if (! $stock) {
+            throw new RuntimeException('Data stok barang tidak ditemukan.');
+        }
+
+        $incrementColumn = match ($condition) {
+            ReturnProductCondition::GOOD => 'available',
+            ReturnProductCondition::LOST => 'lost',
+            ReturnProductCondition::DAMAGED => 'damaged',
+        };
+
+        $updated = $product->stock()
+            ->whereKey($stock->id)
+            ->where('loan', '>', 0)
+            ->update([
+                'loan' => DB::raw('loan - 1'),
+                $incrementColumn => DB::raw("{$incrementColumn} + 1"),
+            ]);
+
+        if ($updated !== 1) {
+            throw new RuntimeException('Stok barang tidak dapat dikembalikan.');
         }
     }
 }

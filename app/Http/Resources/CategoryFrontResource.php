@@ -20,7 +20,7 @@ class CategoryFrontResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
-            'cover' => $this->cover ? Storage::url($this->cover) : null,
+            'cover' => $this->cover ? Storage::disk('public')->url($this->cover) : null,
             'products' => ProductFrontResource::collection($this->whenLoaded('products')),
         ];
     }
